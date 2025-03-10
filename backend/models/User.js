@@ -29,6 +29,13 @@ const UserSchema = new Schema({
     type: String,
     default: 'default-profile.png'
   },
+<<<<<<< HEAD
+=======
+  banner: {
+    type: String,
+    default: 'default-banner.png'
+  },
+>>>>>>> 5f84d79919e8602a5495baccdd165a20cf58c033
   cameraOn: {
     type: Boolean,
     default: false

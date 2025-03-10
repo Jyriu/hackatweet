@@ -31,7 +31,8 @@ exports.register = async (req, res) => {
       nom,
       prenom,
       username,
-      bio: bio || ''
+      bio: bio || '',
+      banner: 'default-banner.png'
     });
 
     // Sauvegarde de l'utilisateur
@@ -39,8 +40,8 @@ exports.register = async (req, res) => {
 
     // Génération du token JWT
     const token = jwt.sign(
-      { id: newUser._id },
-      process.env.JWT_SECRET,
+      { id: newUser._id }, 
+      process.env.JWT_SECRET, 
       { expiresIn: '7d' }
     );
 
@@ -55,6 +56,7 @@ exports.register = async (req, res) => {
         prenom: newUser.prenom,
         username: newUser.username,
         photo: newUser.photo,
+        banner: newUser.banner,
         bio: newUser.bio
       }
     });
@@ -83,8 +85,8 @@ exports.login = async (req, res) => {
 
     // Génération du token JWT
     const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
+      { id: user._id }, 
+      process.env.JWT_SECRET, 
       { expiresIn: '7d' }
     );
 
@@ -99,6 +101,7 @@ exports.login = async (req, res) => {
         prenom: user.prenom,
         username: user.username,
         photo: user.photo,
+        banner: user.banner,
         bio: user.bio
       }
     });
@@ -111,15 +114,12 @@ exports.login = async (req, res) => {
 // Récupérer les informations de l'utilisateur actuel
 exports.getCurrentUser = async (req, res) => {
   try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Utilisateur non authentifié' });
-    }
     const user = await User.findById(req.user.id).select('-password');
-
+    
     if (!user) {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
-
+    
     res.json(user);
   } catch (error) {
     console.error('Erreur lors de la récupération de l\'utilisateur:', error);

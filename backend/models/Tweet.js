@@ -46,4 +46,8 @@ const TweetSchema = new Schema({
   }
 });
 
+<<<<<<< HEAD
 module.exports = mongoose.model('Tweet', TweetSchema);
+=======
+module.exports = mongoose.model('Tweet', TweetSchema); 
+>>>>>>> 5f84d79919e8602a5495baccdd165a20cf58c033
