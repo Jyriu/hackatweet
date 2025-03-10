@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const Tweet = mongoose.model('Tweet');
 const User = mongoose.model('User');
 
-// Gestion des tweets
 
 // Créer un nouveau tweet
 exports.createTweet = async (req, res) => {
