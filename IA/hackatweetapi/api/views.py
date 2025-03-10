@@ -1,18 +1,13 @@
-from django.shortcuts import render
-
-import io
-from collections import Counter
+import cv2
+import numpy as np
+from collections import defaultdict
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-
 from PIL import Image
-from transformers import pipeline
+from deepface import DeepFace
 
-# Charger le modèle (la première utilisation peut être lente)
-model = pipeline("image-classification", model="trpakov/vit-face-expression")
-
-@csrf_exempt  # Désactive la protection CSRF pour simplifier le test
+@csrf_exempt  # Pour faciliter le test (en production, gérer la sécurité CSRF)
 def analyze_images(request):
     if request.method == 'POST':
         screenshots = []
@@ -23,24 +18,39 @@ def analyze_images(request):
             file = request.FILES[key]
             try:
                 image = Image.open(file)
-                screenshots.append(image)
+                img_np = np.array(image)
+                img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+                screenshots.append(img_bgr)
             except Exception as e:
                 return JsonResponse({"error": f"Erreur lors du traitement de '{key}' : {str(e)}"}, status=400)
         
-        # Appliquer le modèle sur chaque image
-        predictions = []
+        results = []
+        aggregated_emotions = defaultdict(float)
         for img in screenshots:
-            result = model(img)
-            # Prendre l’émotion avec la meilleure confiance
-            emotion = result[0]['label']
-            predictions.append(emotion)
+            try:
+                result = DeepFace.analyze(img, actions=['emotion'])
+                # Si le résultat est une liste (cas de plusieurs visages), prendre le premier
+                if isinstance(result, list):
+                    result = result[0]
+                # Convertir les scores de chaque émotion en float natif
+                emotion_details = {emotion: float(score) for emotion, score in result.get("emotion", {}).items()}
+                results.append({
+                    "dominant_emotion": result.get("dominant_emotion"),
+                    "emotion_details": emotion_details
+                })
+                # Agréger les scores pour calculer les émotions globales
+                for emotion, score in emotion_details.items():
+                    aggregated_emotions[emotion] += score
+            except Exception as e:
+                return JsonResponse({"error": f"Erreur lors de l'analyse d'une image : {str(e)}"}, status=500)
         
-        # Calculer l’émotion majoritaire
-        majority_emotion = Counter(predictions).most_common(1)[0][0]
+        # Calculer les 3 émotions globales les plus marquantes avec leur score total
+        top3_emotions = sorted(aggregated_emotions.items(), key=lambda x: x[1], reverse=True)[:3]
+        top3_emotions = [{"emotion": emotion, "score": float(score)} for emotion, score in top3_emotions]
         
         return JsonResponse({
-            "majority_emotion": majority_emotion,
-            "predictions": predictions
+            "results": results,
+            "global_top_emotions": top3_emotions
         })
     else:
         return JsonResponse({"error": "Seule la méthode POST est autorisée."}, status=405)

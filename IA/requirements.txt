@@ -3,3 +3,6 @@ djangorestframework
 transformers
 torch
 pillow
+keras
+deepface
+tf-keras
