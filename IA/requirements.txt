@@ -6,3 +6,5 @@ pillow
 keras
 deepface
 tf-keras
+channels
+uvicorn[standard]

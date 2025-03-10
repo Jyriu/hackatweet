@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'channels',
     'api', 
 ]
 
@@ -70,6 +71,8 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'hackatweetapi.wsgi.application'
+
+ASGI_APPLICATION = 'hackatweetapi.routing.application'
 
 
 # Database
