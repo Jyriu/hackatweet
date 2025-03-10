@@ -1,5 +1,13 @@
 import React, { useState, useContext } from "react";
-import { TextField, Button, Card, CardContent, Typography, Alert, Snackbar } from "@mui/material";
+import {
+  TextField,
+  Button,
+  Card,
+  CardContent,
+  Typography,
+  Alert,
+  Snackbar,
+} from "@mui/material";
 import { useDropzone } from "react-dropzone";
 import { UserContext } from "../context/UserContext";
 
@@ -49,12 +57,23 @@ const NewTweet = ({ onAddTweet }) => {
   return (
     <Card sx={{ marginBottom: 2, padding: 2 }}>
       <CardContent>
-        <Typography variant="h6" color="primary">Publier un Tweet</Typography>
-        {error && <Alert severity="error" sx={{ marginBottom: 2 }}>{error}</Alert>}
-        
-        {user ? <Typography variant="body2">Connecté en tant que <b>{user.username}</b></Typography> 
-              : <Typography color="error">Veuillez vous connecter</Typography>}
-        
+        <Typography variant="h6" color="primary">
+          Publier un Tweet
+        </Typography>
+        {error && (
+          <Alert severity="error" sx={{ marginBottom: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        {user ? (
+          <Typography variant="body2">
+            Connecté en tant que <b>{user.username}</b>
+          </Typography>
+        ) : (
+          <Typography color="error">Veuillez vous connecter</Typography>
+        )}
+
         <TextField
           fullWidth
           multiline
@@ -67,14 +86,17 @@ const NewTweet = ({ onAddTweet }) => {
         />
 
         {/* Zone d'upload d'image */}
-        <div {...getRootProps()} style={{
-          border: "2px dashed #ccc",
-          borderRadius: "10px",
-          padding: "10px",
-          textAlign: "center",
-          cursor: "pointer",
-          marginTop: "10px"
-        }}>
+        <div
+          {...getRootProps()}
+          style={{
+            border: "2px dashed #ccc",
+            borderRadius: "10px",
+            padding: "10px",
+            textAlign: "center",
+            cursor: "pointer",
+            marginTop: "10px",
+          }}
+        >
           <input {...getInputProps()} />
           <Typography variant="body2" color="textSecondary">
             Glisser-déposer une image ou cliquez pour en sélectionner une.
@@ -84,15 +106,19 @@ const NewTweet = ({ onAddTweet }) => {
         {/* Aperçu de l'image uploadée */}
         {image && (
           <div style={{ marginTop: "10px", textAlign: "center" }}>
-            <img src={image} alt="Aperçu" style={{ maxWidth: "100%", borderRadius: "10px" }} />
+            <img
+              src={image}
+              alt="Aperçu"
+              style={{ maxWidth: "100%", borderRadius: "10px" }}
+            />
           </div>
         )}
 
         {/* Bouton pour publier le tweet */}
-        <Button 
-          variant="contained" 
-          color="primary" 
-          sx={{ marginTop: 2 }} 
+        <Button
+          variant="contained"
+          color="primary"
+          sx={{ marginTop: 2 }}
           onClick={handlePostTweet}
           fullWidth
           disabled={!user}
