@@ -11,6 +11,10 @@ router.put('/profile', auth, userController.updateProfile);
 router.post('/follow/:userToFollowId', auth, userController.followUser);
 router.post('/unfollow/:userToUnfollowId', auth, userController.unfollowUser);
 
+// Routes pour obtenir les abonnés et abonnements
+router.get('/:username/followers', userController.getFollowers);
+router.get('/:username/following', userController.getFollowing);
+
 // Route pour les tweets likés
 router.get('/:username/likes', userController.getLikedTweets);
 

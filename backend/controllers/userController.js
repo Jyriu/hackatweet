@@ -23,7 +23,7 @@ exports.getUserByUsername = async (req, res) => {
 // Mettre à jour le profil utilisateur
 exports.updateProfile = async (req, res) => {
   try {
-    const { bio, photo, nom, prenom } = req.body;
+    const { bio, photo, banner, nom, prenom } = req.body;
     const userId = req.user.id;
     
     // Vérifier que l'utilisateur existe
@@ -35,6 +35,7 @@ exports.updateProfile = async (req, res) => {
     // Mettre à jour uniquement les champs fournis
     if (bio !== undefined) user.bio = bio;
     if (photo !== undefined) user.photo = photo;
+    if (banner !== undefined) user.banner = banner;
     if (nom !== undefined) user.nom = nom;
     if (prenom !== undefined) user.prenom = prenom;
     
@@ -49,6 +50,7 @@ exports.updateProfile = async (req, res) => {
         prenom: user.prenom,
         username: user.username,
         photo: user.photo,
+        banner: user.banner,
         bio: user.bio
       }
     });
@@ -209,6 +211,52 @@ exports.getLikedTweets = async (req, res) => {
     res.json(likedTweets);
   } catch (error) {
     console.error('Erreur lors de la récupération des tweets likés:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+// Récupérer la liste des abonnés d'un utilisateur
+exports.getFollowers = async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    const user = await User.findOne({ username }).select('followers');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Récupérer les détails de chaque abonné
+    const followers = await User.find({ 
+      _id: { $in: user.followers }
+    }).select('_id nom prenom username photo bio');
+    
+    res.json(followers);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des abonnés:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+// Récupérer la liste des abonnements d'un utilisateur
+exports.getFollowing = async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    const user = await User.findOne({ username }).select('following');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Récupérer les détails de chaque abonnement
+    const following = await User.find({ 
+      _id: { $in: user.following }
+    }).select('_id nom prenom username photo bio');
+    
+    res.json(following);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des abonnements:', error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
