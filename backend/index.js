@@ -48,6 +48,14 @@ app.get('/api/test', async (req, res) => {
     }
   });
 
+// Importation des routes
+const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+
+// Application des routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+
 // Connexion à MongoDB puis démarrage du serveur
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
