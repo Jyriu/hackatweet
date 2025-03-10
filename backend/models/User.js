@@ -29,6 +29,10 @@ const UserSchema = new Schema({
     type: String,
     default: 'default-profile.png'
   },
+  banner: {
+    type: String,
+    default: 'default-banner.png'
+  },
   cameraOn: {
     type: Boolean,
     default: false
