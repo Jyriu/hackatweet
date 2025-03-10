@@ -31,7 +31,8 @@ exports.register = async (req, res) => {
       nom,
       prenom,
       username,
-      bio: bio || ''
+      bio: bio || '',
+      banner: 'default-banner.png'
     });
 
     // Sauvegarde de l'utilisateur
@@ -55,6 +56,7 @@ exports.register = async (req, res) => {
         prenom: newUser.prenom,
         username: newUser.username,
         photo: newUser.photo,
+        banner: newUser.banner,
         bio: newUser.bio
       }
     });
@@ -99,6 +101,7 @@ exports.login = async (req, res) => {
         prenom: user.prenom,
         username: user.username,
         photo: user.photo,
+        banner: user.banner,
         bio: user.bio
       }
     });
