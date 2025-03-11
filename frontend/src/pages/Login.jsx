@@ -1,18 +1,37 @@
 import React, { useState, useContext } from "react";
-import { Container, TextField, Button, Card, CardContent, Typography } from "@mui/material";
+import axios from "axios";
+import { Container, TextField, Button, Card, CardContent, Typography, Alert } from "@mui/material";
 import { UserContext } from "../context/UserContext";
 import { useNavigate } from "react-router-dom";
 
 const Login = () => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState(null);
   const { setUser } = useContext(UserContext);
   const navigate = useNavigate();
 
-  const handleLogin = () => {
-    if (username.trim() !== "") {
-      setUser({ username });
-      navigate("/");  // Redirection vers la page d'accueil après connexion
+  const handleLogin = async () => {
+    try {
+      // Envoi de la requête POST au backend
+      const response = await axios.post("http://localhost:5001/api/auth/login", {
+        email,
+        password,
+      });
+
+      // Récupération de la réponse
+      const { token, user } = response.data;
+
+      // Sauvegarde du token JWT dans le localStorage
+      localStorage.setItem("token", token);
+
+      // Mise à jour du contexte utilisateur
+      setUser(user);
+
+      // Redirection vers la page d'accueil
+      navigate("/");
+    } catch (err) {
+      setError(err.response?.data?.message || "Erreur lors de la connexion");
     }
   };
 
@@ -23,12 +42,14 @@ const Login = () => {
           <Typography variant="h5" textAlign="center" color="primary">
             Connexion
           </Typography>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           <TextField
             fullWidth
-            label="Nom d'utilisateur"
+            label="Adresse Email"
             margin="normal"
             variant="outlined"
-            onChange={(e) => setUsername(e.target.value)}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
           <TextField
             fullWidth
@@ -36,9 +57,16 @@ const Login = () => {
             type="password"
             margin="normal"
             variant="outlined"
+            value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <Button fullWidth variant="contained" color="primary" sx={{ marginTop: 2 }} onClick={handleLogin}>
+          <Button 
+            fullWidth 
+            variant="contained" 
+            color="primary" 
+            sx={{ marginTop: 2 }} 
+            onClick={handleLogin}
+          >
             Se connecter
           </Button>
         </CardContent>
