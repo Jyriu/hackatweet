@@ -14,12 +14,26 @@ exports.createTweet = async (req, res) => {
         if (!text || text.trim() === '') {
             return res.status(400).json({ message: 'Le texte du tweet est requis' });
         }
+
+        // Extract mentions from the tweet text
+        const mentionRegex = /@(\w+)/g;
+        const mentions = [];
+        let match;
+        while ((match = mentionRegex.exec(text)) !== null) {
+            mentions.push(match[1]);
+        }
+
+        // Find users mentioned in the tweet
+        const mentionedUsers = await User.find({ username: { $in: mentions } }).select('_id');
+        const idmentions = mentionedUsers.map(user => user._id);
+
         const newTweet = new Tweet({
             text,
             mediaUrl,
             author: req.user.id,
             userLikes: [],
             idcommentaires: [],
+            idmentions,
             hashtags,
             retweets: [],
             originalTweet: null,
@@ -157,7 +171,7 @@ exports.deleteTweet = async (req, res) => {
         if (tweet.author.toString() !== req.user.id) {
             return res.status(403).json({ message: 'Non autorisé' });
         }
-        await tweet.remove();
+        await Tweet.deleteOne({ _id: req.params.id });
         res.json({ message: 'Tweet supprimé avec succès' });
     } catch (error) {
         console.error('Erreur lors de la suppression du tweet:', error);

@@ -53,39 +53,18 @@ app.get('/api/test', async (req, res) => {
   }
 });
 
-// Route de test pour envoyer une notification (à retirer en production)
-// app.post('/api/test/notifications', async (req, res) => {
-//   try {
-//     const userId = req.body.userId;
-//     const triggeredBy = req.body.triggeredBy || userId;
-//     
-//     // Créer une notification test
-//     const testNotification = {
-//       userId: mongoose.Types.ObjectId(userId),
-//       type: 'abonnement',
-//       triggeredBy: mongoose.Types.ObjectId(triggeredBy),
-//       contentModel: 'Tweet',
-//       read: false
-//     };
-//     
-//     const notification = await sendNotification(testNotification);
-//     res.json({ success: true, notification });
-//   } catch (error) {
-//     console.error('Erreur lors de l\'envoi de la notification test:', error);
-//     res.status(500).json({ success: false, error: error.message });
-//   }
-// });
-
 // Importation des routes
 const authRoutes = require('./routes/authRoutes');
 const tweetRoutes = require('./routes/tweetRoutes');
 const userRoutes = require('./routes/userRoutes');
+const searchRoutes = require('./routes/searchRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 
 // Application des routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tweet', tweetRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/search', searchRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 // Créer le serveur HTTP
