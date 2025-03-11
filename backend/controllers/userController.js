@@ -319,3 +319,49 @@ exports.updateKeywordsFromAI = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
+
+// Basculer un paramètre utilisateur (caméra, notifications, etc.)
+exports.toggleUserSetting = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { setting } = req.params; // Le paramètre à modifier (cameraOn, notifOn, etc.)
+    
+    // Vérifier que le paramètre demandé est valide
+    const validSettings = ['cameraOn', 'notifOn'];
+    if (!validSettings.includes(setting)) {
+      return res.status(400).json({ 
+        message: `Paramètre invalide. Paramètres disponibles: ${validSettings.join(', ')}` 
+      });
+    }
+    
+    // Récupérer l'utilisateur
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Inverser la valeur actuelle du paramètre
+    user[setting] = !user[setting];
+    
+    // Sauvegarder les modifications
+    await user.save();
+    
+    // Préparer un message adapté au paramètre modifié
+    let message = '';
+    if (setting === 'cameraOn') {
+      message = `Caméra ${user.cameraOn ? 'activée' : 'désactivée'} avec succès`;
+    } else if (setting === 'notifOn') {
+      message = `Notifications ${user.notifOn ? 'activées' : 'désactivées'} avec succès`;
+    }
+    
+    // Retourner le statut mis à jour
+    res.json({
+      message,
+      [setting]: user[setting]
+    });
+  } catch (error) {
+    console.error(`Erreur lors de la mise à jour du paramètre:`, error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};

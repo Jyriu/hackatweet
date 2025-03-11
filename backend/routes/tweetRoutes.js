@@ -7,6 +7,10 @@ const { auth } = require('../middleware/authMiddleware');
 
 // Routes d'authentification
 router.post('/createTweet', auth, tweetController.createTweet);
-router.get('/test', auth, tweetController.getTweets);
+router.get('/tweets', auth, tweetController.getTweets);
+router.post('/like/:id', auth, tweetController.likeTweet);
+router.post('/retweet/:id', auth, tweetController.retweet);
+router.get('/userTweets', auth, tweetController.getUserTweets);
+router.post('/comment/:id', auth, tweetController.addComment); // Add this line
 
 module.exports = router;
