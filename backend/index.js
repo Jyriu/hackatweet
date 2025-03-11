@@ -52,11 +52,13 @@ app.get('/api/test', async (req, res) => {
 const authRoutes = require('./routes/authRoutes');
 const tweetRoutes = require('./routes/tweetRoutes');
 const userRoutes = require('./routes/userRoutes');
+const searchRoutes = require('./routes/searchRoutes');
 
 // Application des routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tweet', tweetRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/search', searchRoutes);
 
 // Connexion à MongoDB puis démarrage du serveur
 mongoose.connect(process.env.MONGODB_URI)
