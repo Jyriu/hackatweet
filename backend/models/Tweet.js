@@ -27,14 +27,8 @@ const TweetSchema = new Schema({
     type: String
   }],
   retweets: [{
-    user: {
-      type: Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    date: {
-      type: Date,
-      default: Date.now
-    }
+    type: Schema.Types.ObjectId,
+    ref: 'Tweet'
   }],
   originalTweet: {
     type: Schema.Types.ObjectId,
