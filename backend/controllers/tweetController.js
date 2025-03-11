@@ -7,7 +7,7 @@ const Replies = mongoose.model('Replies');
 // Créer un nouveau tweet
 exports.createTweet = async (req, res) => {
     try {
-        const { text, mediaUrl, hashtags } = req.body;
+        const { text, mediaUrl } = req.body; // On ne récupère plus "hashtags" depuis req.body
         if (!req.user) {
             return res.status(401).json({ message: 'Utilisateur non authentifié' });
         }
@@ -15,7 +15,15 @@ exports.createTweet = async (req, res) => {
             return res.status(400).json({ message: 'Le texte du tweet est requis' });
         }
 
-        // Extract mentions from the tweet text
+        // Extraction automatique des hashtags depuis le texte
+        const hashtagRegex = /#(\w+)/g;
+        const extractedHashtags = [];
+        let hashtagMatch;
+        while ((hashtagMatch = hashtagRegex.exec(text)) !== null) {
+            extractedHashtags.push(hashtagMatch[1]);
+        }
+
+        // Extraction des mentions depuis le texte
         const mentionRegex = /@(\w+)/g;
         const mentions = [];
         let match;
@@ -23,7 +31,7 @@ exports.createTweet = async (req, res) => {
             mentions.push(match[1]);
         }
 
-        // Find users mentioned in the tweet
+        // Recherche des utilisateurs mentionnés
         const mentionedUsers = await User.find({ username: { $in: mentions } }).select('_id');
         const idmentions = mentionedUsers.map(user => user._id);
 
@@ -34,7 +42,7 @@ exports.createTweet = async (req, res) => {
             userLikes: [],
             idcommentaires: [],
             idmentions,
-            hashtags,
+            hashtags: extractedHashtags, // Insertion des hashtags extraits automatiquement
             retweets: [],
             originalTweet: null,
             date: new Date()
@@ -46,6 +54,7 @@ exports.createTweet = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la création du tweet', error: error.message });
     }
 };
+
 
 // Récupérer tous les tweets
 exports.getTweets = async (req, res) => {
