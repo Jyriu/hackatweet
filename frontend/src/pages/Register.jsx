@@ -33,12 +33,14 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-
+    const url = import.meta.env.VITE_BACKEND_URL;
+    // try {
+    //   const response = await axios.post(
+    //     "http://localhost:5000/api/auth/register",
+    //     formData
+    //   );
     try {
-      const response = await axios.post(
-        "http://localhost:5000/api/auth/register",
-        formData
-      );
+      const response = await axios.post(url + "/api/auth/register", formData);
 
       // Récupération du token et de l'utilisateur renvoyé par le backend
       const { token, user } = response.data;

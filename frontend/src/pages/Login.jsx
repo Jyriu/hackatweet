@@ -18,17 +18,15 @@ const Login = () => {
   const [error, setError] = useState(null);
   const { setUser } = useContext(UserContext);
   const navigate = useNavigate();
+  const url = import.meta.env.VITE_BACKEND_URL;
 
   const handleLogin = async () => {
     try {
       // Envoi de la requête POST au backend
-      const response = await axios.post(
-        "http://localhost:5001/api/auth/login",
-        {
-          email,
-          password,
-        }
-      );
+      const response = await axios.post(url + "/api/auth/login", {
+        email,
+        password,
+      });
 
       // Récupération de la réponse
       const { token, user } = response.data;
