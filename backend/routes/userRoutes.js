@@ -22,4 +22,7 @@ router.post('/update-keywords', auth, userController.updateKeywordsFromAI);
 // Route pour obtenir les utilisateurs suggérés
 router.get('/suggested-users', auth, userController.getSuggestedUsers);
 
+// Route générique pour basculer les paramètres utilisateur (camera, notifications, etc.)
+router.put('/toggle/:setting', auth, userController.toggleUserSetting);
+
 module.exports = router;
