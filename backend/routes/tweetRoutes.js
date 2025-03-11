@@ -17,5 +17,6 @@ router.get('/followingTweets', auth, tweetController.getFollowingTweets);
 router.get('/likedTweetsByFollowers', auth, tweetController.getLikedTweetsByFollowers);
 router.get('/getLikedTweetsByFollowings', auth, tweetController.getLikedTweetsByFollowings);
 router.get('/likedTweetsByUser', auth, tweetController.getLikedTweetsByUser);
+router.delete('/deleteAllTweets', auth, tweetController.deleteAllTweets);
 
 module.exports = router;
