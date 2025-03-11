@@ -11,6 +11,7 @@ require('./models/User');
 require('./models/Tweet');
 require('./models/Replies');
 require('./models/Notification');
+const User = mongoose.model('User');
 const Notification = mongoose.model('Notification');
 
 const app = express();
@@ -52,6 +53,29 @@ app.get('/api/test', async (req, res) => {
   }
 });
 
+// Route de test pour envoyer une notification (à retirer en production)
+// app.post('/api/test/notifications', async (req, res) => {
+//   try {
+//     const userId = req.body.userId;
+//     const triggeredBy = req.body.triggeredBy || userId;
+//     
+//     // Créer une notification test
+//     const testNotification = {
+//       userId: mongoose.Types.ObjectId(userId),
+//       type: 'abonnement',
+//       triggeredBy: mongoose.Types.ObjectId(triggeredBy),
+//       contentModel: 'Tweet',
+//       read: false
+//     };
+//     
+//     const notification = await sendNotification(testNotification);
+//     res.json({ success: true, notification });
+//   } catch (error) {
+//     console.error('Erreur lors de l\'envoi de la notification test:', error);
+//     res.status(500).json({ success: false, error: error.message });
+//   }
+// });
+
 // Importation des routes
 const authRoutes = require('./routes/authRoutes');
 const tweetRoutes = require('./routes/tweetRoutes');
@@ -70,7 +94,10 @@ const server = http.createServer(app);
 // Initialiser Socket.io
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    // Accepter toutes les origines pendant le développement
+    origin: process.env.NODE_ENV === "production" 
+      ? process.env.FRONTEND_URL || "http://localhost:3000"
+      : "*",
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -79,6 +106,7 @@ const io = socketIo(server, {
 // Stocker les connexions des utilisateurs
 const userSocketMap = {};
 
+console.log('Configuration du middleware Socket.io...');
 // Middleware Socket.io pour authentifier les utilisateurs
 io.use(async (socket, next) => {
   try {
@@ -87,9 +115,11 @@ io.use(async (socket, next) => {
       socket.handshake.auth?.token ||               // Option 1: auth object (méthode standard)
       socket.handshake.headers?.token ||            // Option 2: header HTTP 
       socket.handshake.query?.token ||             // Option 3: query parameter
-      socket.request.headers?.authorization?.replace('Bearer ', ''); // Option 4: header Authorization standard
+      socket.handshake.headers?.authorization?.replace('Bearer ', '') || // Option 5: header dans handshake
+      socket.request?.headers?.authorization?.replace('Bearer ', ''); // Option 4: header Authorization standard
     
     if (!token) {
+      console.log('🚫 Tentative de connexion sans token rejetée');
       return next(new Error('Authentication error: Token missing'));
     }
     
@@ -97,20 +127,24 @@ io.use(async (socket, next) => {
     const user = await User.findById(decoded.id).select('_id username');
     
     if (!user) {
+      console.log(`🚫 Utilisateur non trouvé: ${decoded.id}`);
       return next(new Error('Authentication error: User not found'));
     }
     
     // Attacher les informations utilisateur au socket
     socket.user = user;
+    console.log(`✅ Utilisateur authentifié via socket: ${user.username}`);
     next();
   } catch (error) {
+    console.log(`🚫 Erreur d'authentification socket: ${error.message}`);
     return next(new Error('Authentication error: ' + error.message));
   }
 });
+console.log('Middleware Socket.io configuré');
 
 // Gestion des connexions Socket.io
 io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.user.username}`);
+  console.log(`🔌 [Socket] Utilisateur connecté: ${socket.user.username} (${socket.user._id})`);
   
   // Stocker la connexion de l'utilisateur
   userSocketMap[socket.user._id] = socket.id;
@@ -120,7 +154,7 @@ io.on('connection', (socket) => {
   
   // Gérer la déconnexion
   socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.user.username}`);
+    console.log(`🔌 [Socket] Utilisateur déconnecté: ${socket.user.username} (${socket.user._id})`);
     delete userSocketMap[socket.user._id];
   });
 });
@@ -135,12 +169,15 @@ const sendNotification = async (notification) => {
     // Si l'utilisateur est connecté, envoyer la notification en temps réel
     const socketId = userSocketMap[notification.userId.toString()];
     if (socketId) {
+      console.log(`📨 [Notification] Envoi à l'utilisateur ${notification.userId}, type: ${notification.type}`);
       io.to(socketId).emit('new_notification', newNotification);
+    } else {
+      console.log(`📝 [Notification] Stockée pour l'utilisateur ${notification.userId} (hors ligne)`);
     }
     
     return newNotification;
   } catch (error) {
-    console.error('Error sending notification:', error);
+    console.error(`📛 [Notification] Erreur lors de l'envoi: ${error.message}`, error);
     throw error;
   }
 };
@@ -181,4 +218,9 @@ process.on('SIGINT', async () => {
   await mongoose.connection.close();
   console.log('Connexion MongoDB fermée');
   process.exit(0);
+});
+
+// Ajouter ceci après l'initialisation de io
+io.engine.on("connection_error", (err) => {
+  console.error(`📛 [Socket] Erreur de connexion: ${err.message}`, err);
 });
