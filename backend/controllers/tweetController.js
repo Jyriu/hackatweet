@@ -7,12 +7,20 @@ const Replies = mongoose.model('Replies');
 // Créer un nouveau tweet
 exports.createTweet = async (req, res) => {
     try {
-        const { text, mediaUrl, hashtags } = req.body;
+        const { text, mediaUrl } = req.body;
         if (!req.user) {
             return res.status(401).json({ message: 'Utilisateur non authentifié' });
         }
         if (!text || text.trim() === '') {
             return res.status(400).json({ message: 'Le texte du tweet est requis' });
+        }
+
+        // Extraction des mentions depuis le texte
+        const hashtagRegex = /#(\w+)/g;
+        const extractedHashtags = [];
+        let hashtagMatch;
+        while ((hashtagMatch = hashtagRegex.exec(text)) !== null) {
+            extractedHashtags.push(hashtagMatch[1]);
         }
 
         // Extract mentions from the tweet text
@@ -23,7 +31,7 @@ exports.createTweet = async (req, res) => {
             mentions.push(match[1]);
         }
 
-        // Find users mentioned in the tweet
+        // Recherche des utilisateurs mentionnés
         const mentionedUsers = await User.find({ username: { $in: mentions } }).select('_id');
         const idmentions = mentionedUsers.map(user => user._id);
 
@@ -34,7 +42,7 @@ exports.createTweet = async (req, res) => {
             userLikes: [],
             idcommentaires: [],
             idmentions,
-            hashtags,
+            hashtags: extractedHashtags,
             retweets: [],
             originalTweet: null,
             date: new Date()
@@ -194,43 +202,43 @@ exports.deleteAllTweets = async (req, res) => {
 // Ajouter un like à un tweet
 exports.likeTweet = async (req, res) => {
     try {
-      const tweet = await Tweet.findById(req.params.id);
-      const user = await User.findById(req.user.id);
-  
-      if (!tweet) {
-        console.warn(`⚠️ [Tweet] Tentative de like d'un tweet inexistant: ${req.params.id}`);
-        return res.status(404).json({ message: 'Tweet non trouvé' });
-      }
-      if (tweet.userLikes.includes(req.user.id)) {
-        console.warn(`⚠️ [Tweet] Utilisateur ${req.user.id} a déjà liké le tweet ${req.params.id}`);
-        return res.status(400).json({ message: 'Vous avez déjà liké ce tweet' });
-      }
-  
-      tweet.userLikes.push(req.user.id);
-      await tweet.save();
-  
-      // Si l'utilisateur qui like n'est pas l'auteur du tweet, envoyer une notification
-      if (tweet.author.toString() !== req.user.id) {
-        await global.sendNotification({
-          userId: tweet.author,
-          type: 'like',
-          triggeredBy: req.user.id,
-          contentId: tweet._id,
-          contentModel: 'Tweet',
-          read: false
-        });
-        console.log(`✅ [Tweet] Like + notification envoyée de ${req.user.id} à ${tweet.author} pour le tweet ${tweet._id}`);
-      } else {
-        console.log(`✅ [Tweet] Like sans notification (auteur = liker) pour le tweet ${tweet._id}`);
-      }
-  
-      res.json({ message: 'Tweet liké', tweet });
+        const tweet = await Tweet.findById(req.params.id);
+        const user = await User.findById(req.user.id);
+
+        if (!tweet) {
+            console.warn(`⚠️ [Tweet] Tentative de like d'un tweet inexistant: ${req.params.id}`);
+            return res.status(404).json({ message: 'Tweet non trouvé' });
+        }
+        if (tweet.userLikes.includes(req.user.id)) {
+            console.warn(`⚠️ [Tweet] Utilisateur ${req.user.id} a déjà liké le tweet ${req.params.id}`);
+            return res.status(400).json({ message: 'Vous avez déjà liké ce tweet' });
+        }
+
+        tweet.userLikes.push(req.user.id);
+        await tweet.save();
+
+        // Si l'utilisateur qui like n'est pas l'auteur du tweet, envoyer une notification
+        if (tweet.author.toString() !== req.user.id) {
+            await global.sendNotification({
+                userId: tweet.author,
+                type: 'like',
+                triggeredBy: req.user.id,
+                contentId: tweet._id,
+                contentModel: 'Tweet',
+                read: false
+            });
+            console.log(`✅ [Tweet] Like + notification envoyée de ${req.user.id} à ${tweet.author} pour le tweet ${tweet._id}`);
+        } else {
+            console.log(`✅ [Tweet] Like sans notification (auteur = liker) pour le tweet ${tweet._id}`);
+        }
+
+        res.json({ message: 'Tweet liké', tweet });
     } catch (error) {
-      console.error(`📛 [Tweet] Erreur lors du like: ${error.message}`, error);
-      res.status(500).json({ message: 'Erreur lors de l\'ajout du like', error: error.message });
+        console.error(`📛 [Tweet] Erreur lors du like: ${error.message}`, error);
+        res.status(500).json({ message: 'Erreur lors de l\'ajout du like', error: error.message });
     }
 };
-  
+
 // Retweeter un tweet
 exports.retweet = async (req, res) => {
     try {
@@ -253,7 +261,7 @@ exports.retweet = async (req, res) => {
         await newTweet.save();
         originalTweet.retweets.push(newTweet.id);
         await originalTweet.save();
-        
+
         // Ajouter notification à l'auteur du tweet original
         if (originalTweet.author.toString() !== req.user.id) {
             await global.sendNotification({
@@ -265,7 +273,7 @@ exports.retweet = async (req, res) => {
                 read: false
             });
         }
-        
+
         res.status(201).json(newTweet);
     } catch (error) {
         console.error('Erreur lors du retweet:', error);
@@ -296,7 +304,7 @@ exports.addComment = async (req, res) => {
         await newComment.save();
         tweet.idcommentaires.push(newComment._id);
         await tweet.save();
-        
+
         // Ajouter notification à l'auteur du tweet
         if (tweet.author.toString() !== req.user.id) {
             await global.sendNotification({
@@ -308,7 +316,7 @@ exports.addComment = async (req, res) => {
                 read: false
             });
         }
-        
+
         res.status(201).json(newComment);
     } catch (error) {
         console.error('Erreur lors de l\'ajout du commentaire:', error);
@@ -333,7 +341,7 @@ exports.likeComment = async (req, res) => {
         user.likes.push(comment.id);
         await user.save();
         await comment.save();
-        
+
         // Ajouter notification à l'auteur du commentaire
         if (comment.author.toString() !== req.user.id) {
             await global.sendNotification({
@@ -348,11 +356,59 @@ exports.likeComment = async (req, res) => {
         } else {
             console.log(`✅ [Tweet] Like sans notification (auteur = liker) pour le commentaire ${comment._id}`);
         }
-        
+
         res.json(comment);
     } catch (error) {
         console.error(`📛 [Tweet] Erreur lors du like d'un commentaire: ${error.message}`, error);
         res.status(500).json({ message: 'Erreur lors de l\'ajout du like', error: error.message });
+    }
+};
+
+// Récupérer tous les commentaires d'un tweet
+exports.getComments = async (req, res) => {
+    try {
+        const tweet = await Tweet.findById(req.params.id).populate({
+            path: 'idcommentaires',
+            populate: {
+                path: 'author',
+                select: 'username nom prenom photo'
+            }
+        });
+
+        if (!tweet) {
+            return res.status(404).json({ message: 'Tweet non trouvé' });
+        }
+
+        res.json(tweet.idcommentaires);
+    } catch (error) {
+        console.error('Erreur lors de la récupération des commentaires:', error);
+        res.status(500).json({ message: 'Erreur lors de la récupération des commentaires', error: error.message });
+    }
+};
+
+// Modifier un commentaire
+exports.updateComment = async (req, res) => {
+    try {
+        const { text } = req.body;
+        if (!req.user) {
+            return res.status(401).json({ message: 'Utilisateur non authentifié' });
+        }
+        if (!text || text.trim() === '') {
+            return res.status(400).json({ message: 'Le texte du commentaire est requis' });
+        }
+        const comment = await Replies.findById(req.params.id);
+        if (!comment) {
+            return res.status(404).json({ message: 'Commentaire non trouvé' });
+        }
+        if (comment.author.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Non autorisé' });
+        }
+        comment.text = text;
+        await comment.save();
+        res.json(comment);
+    } catch (error) {
+        console.error('Erreur lors de la modification du commentaire:', error);
+        res.status(500).json({ message: 'Erreur lors de la modification du commentaire', error: error.message });
     }
 };
 
