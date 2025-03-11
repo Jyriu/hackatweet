@@ -1,3 +1,10 @@
+<<<<<<< HEAD
 node_modules
 package-lock.json
 .env
+=======
+
+package-lock.json
+.env
+node_modules/
+>>>>>>> feat-ai-implementation-frontend-backend
