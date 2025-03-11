@@ -2,7 +2,6 @@ import React, { useState, useContext } from "react";
 import { TextField, Button, Card, CardContent, Typography, Alert, Snackbar } from "@mui/material";
 import { useDropzone } from "react-dropzone";
 import { UserContext } from "../context/UserContext";
-import axios from "axios";
 
 const NewTweet = ({ onAddTweet }) => {
   const { user } = useContext(UserContext);
@@ -10,7 +9,6 @@ const NewTweet = ({ onAddTweet }) => {
   const [image, setImage] = useState(null);
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false); // Pour afficher la notification
-  const url = import.meta.env.VITE_BACKEND_URL;
 
   const onDrop = (acceptedFiles) => {
     const file = acceptedFiles[0];
@@ -20,31 +18,27 @@ const NewTweet = ({ onAddTweet }) => {
     }
   };
 
-  const handlePostTweet = async () => {
+  const handlePostTweet = () => {
     if (tweetContent.trim() === "") {
       setError("Le tweet ne peut pas être vide !");
       return;
     }
 
-    // Prépare le tweet
     const newTweet = {
-      text: tweetContent,
-      mediaUrl: image, // Si une image est présente
-      author: user ? user.username : "Anonyme",
+      idTweet: Date.now(),
+      contentxt: tweetContent,
+      mediaUrl: image,
+      auteur: user ? user.username : "Anonyme",
+      userLikes: [],
+      hashtags: [],
+      date: new Date().toISOString(),
     };
 
-    // Envoi du tweet au backend via une requête POST
-    try {
-      const response = await axios.post(url + "/api/tweet/createTweet", newTweet);
-      onAddTweet(response.data); // Ajoute le tweet au frontend une fois ajouté dans la base de données
-      setTweetContent("");
-      setImage(null);
-      setError("");
-      setOpen(true); // Afficher la notification
-    } catch (error) {
-      console.error("Erreur lors de la publication du tweet:", error);
-      setError("Erreur lors de la publication du tweet");
-    }
+    onAddTweet(newTweet);
+    setTweetContent("");
+    setImage(null);
+    setError("");
+    setOpen(true); // Afficher la notification
   };
 
   const { getRootProps, getInputProps } = useDropzone({
