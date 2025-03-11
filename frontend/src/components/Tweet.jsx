@@ -1,84 +1,45 @@
-import React, { useState } from "react";
-import { Card, CardContent, Typography, Button, IconButton, TextField } from "@mui/material";
-import FavoriteIcon from "@mui/icons-material/Favorite";
-import RepeatIcon from "@mui/icons-material/Repeat";
-import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import React, { useState, useEffect, useContext } from "react";
+import axios from "axios";
+import { Grid, CircularProgress } from "@mui/material";
+import Tweet from "./Tweet";
 
-const Tweet = ({ tweet }) => {
-  const [likes, setLikes] = useState(tweet.userLikes.length);
-  const [liked, setLiked] = useState(false);
-  const [retweets, setRetweets] = useState(0);
-  const [retweeted, setRetweeted] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState("");
+const TweetList = () => {
+  const [tweets, setTweets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const url = import.meta.env.VITE_BACKEND_URL; // Récupère l'URL du backend
 
-  const handleLike = () => {
-    setLikes(liked ? likes - 1 : likes + 1);
-    setLiked(!liked);
-  };
+  useEffect(() => {
+    const fetchTweets = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get(url + "/api/tweet/tweets", {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        setTweets(response.data);
+      } catch (error) {
+        console.error("Erreur lors de la récupération des tweets:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTweets();
+  }, [url]);
 
-  const handleRetweet = () => {
-    setRetweets(retweeted ? retweets - 1 : retweets + 1);
-    setRetweeted(!retweeted);
-  };
-
-  const handleAddComment = () => {
-    if (newComment.trim() !== "") {
-      setComments([...comments, newComment]);
-      setNewComment("");
-    }
-  };
+  if (loading) {
+    return <CircularProgress />;
+  }
 
   return (
-    <Card sx={{ marginBottom: 2, padding: 2 }}>
-      <CardContent>
-        <Typography variant="h6">@{tweet.auteur}</Typography>
-        <Typography variant="body1">{tweet.contentxt}</Typography>
-        {tweet.mediaUrl && (
-          <img src={tweet.mediaUrl} alt="Tweet media" style={{ width: "100%", borderRadius: "10px", marginTop: "10px" }} />
-        )}
-        <div style={{ marginTop: "10px", display: "flex", gap: "10px" }}>
-          <IconButton onClick={handleLike} color={liked ? "error" : "default"}>
-            <FavoriteIcon />
-          </IconButton>
-          <Typography>{likes}</Typography>
-
-          <IconButton onClick={handleRetweet} color={retweeted ? "success" : "default"}>
-            <RepeatIcon />
-          </IconButton>
-          <Typography>{retweets}</Typography>
-
-          <IconButton onClick={() => setShowComments(!showComments)} color="primary">
-            <ChatBubbleOutlineIcon />
-          </IconButton>
-          <Typography>{comments.length}</Typography>
-        </div>
-
-        {showComments && (
-          <div style={{ marginTop: "10px" }}>
-            {comments.map((comment, index) => (
-              <Typography key={index} variant="body2" sx={{ backgroundColor: "#f5f5f5", padding: 1, borderRadius: "5px", marginBottom: "5px" }}>
-                {comment}
-              </Typography>
-            ))}
-            <TextField
-              fullWidth
-              label="Écrire un commentaire..."
-              variant="outlined"
-              size="small"
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              sx={{ marginTop: 1 }}
-            />
-            <Button variant="contained" sx={{ marginTop: 1 }} onClick={handleAddComment}>
-              Ajouter
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <Grid container spacing={2}>
+      {tweets.map((tweet) => (
+        <Grid item xs={12} key={tweet._id || tweet.idTweet}>
+          <Tweet tweet={tweet} />
+        </Grid>
+      ))}
+    </Grid>
   );
 };
 
-export default Tweet;
+export default TweetList;

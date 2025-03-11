@@ -1,4 +1,5 @@
 import React, { useState, useContext } from "react";
+import axios from "axios";
 import { TextField, Button, Card, CardContent, Typography, Alert, Snackbar } from "@mui/material";
 import { useDropzone } from "react-dropzone";
 import { UserContext } from "../context/UserContext";
@@ -9,6 +10,9 @@ const NewTweet = ({ onAddTweet }) => {
   const [image, setImage] = useState(null);
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false); // Pour afficher la notification
+  
+  // Récupération de l'URL du backend depuis l'environnement
+  const url = import.meta.env.VITE_BACKEND_URL;
 
   const onDrop = (acceptedFiles) => {
     const file = acceptedFiles[0];
@@ -18,27 +22,36 @@ const NewTweet = ({ onAddTweet }) => {
     }
   };
 
-  const handlePostTweet = () => {
+  const handlePostTweet = async () => {
     if (tweetContent.trim() === "") {
       setError("Le tweet ne peut pas être vide !");
       return;
     }
 
-    const newTweet = {
-      idTweet: Date.now(),
-      contentxt: tweetContent,
+    // Préparation du tweet à envoyer
+    const payload = {
+      text: tweetContent,
       mediaUrl: image,
-      auteur: user ? user.username : "Anonyme",
-      userLikes: [],
-      hashtags: [],
-      date: new Date().toISOString(),
+      hashtags: [] // Tu pourras adapter en fonction de tes besoins
     };
 
-    onAddTweet(newTweet);
-    setTweetContent("");
-    setImage(null);
-    setError("");
-    setOpen(true); // Afficher la notification
+    try {
+      // On récupère le token d'authentification (si nécessaire)
+      const token = localStorage.getItem("token");
+      const response = await axios.post(url + "/api/tweet/createTweet", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      onAddTweet(response.data);
+      setTweetContent("");
+      setImage(null);
+      setError("");
+      setOpen(true); // Afficher la notification
+    } catch (err) {
+      console.error("Erreur lors de la création du tweet:", err);
+      setError(err.response?.data?.message || "Erreur lors de la création du tweet");
+    }
   };
 
   const { getRootProps, getInputProps } = useDropzone({
@@ -52,8 +65,13 @@ const NewTweet = ({ onAddTweet }) => {
         <Typography variant="h6" color="primary">Publier un Tweet</Typography>
         {error && <Alert severity="error" sx={{ marginBottom: 2 }}>{error}</Alert>}
         
-        {user ? <Typography variant="body2">Connecté en tant que <b>{user.username}</b></Typography> 
-              : <Typography color="error">Veuillez vous connecter</Typography>}
+        {user ? (
+          <Typography variant="body2">
+            Connecté en tant que <b>{user.username}</b>
+          </Typography>
+        ) : (
+          <Typography color="error">Veuillez vous connecter</Typography>
+        )}
         
         <TextField
           fullWidth
