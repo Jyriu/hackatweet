@@ -1,0 +1,10 @@
+django
+djangorestframework
+transformers
+torch
+pillow
+keras
+deepface
+tf-keras
+channels
+uvicorn[standard]
