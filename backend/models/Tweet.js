@@ -23,6 +23,10 @@ const TweetSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'Replies'
   }],
+  idmentions: [{
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   hashtags: [{
     type: String
   }],
@@ -40,5 +44,4 @@ const TweetSchema = new Schema({
   }
 });
 
-
-module.exports = mongoose.model('Tweet', TweetSchema); 
+module.exports = mongoose.model('Tweet', TweetSchema);

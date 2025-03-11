@@ -48,12 +48,9 @@ exports.register = async (req, res) => {
     // Sauvegarde de l'utilisateur
     await newUser.save();
 
-    // Génération du token JWT
-    const token = jwt.sign(
-      { id: newUser._id }, 
-      process.env.JWT_SECRET, 
-      { expiresIn: '7d' }
-    );
+    // Génération du token JWT avec la fonction utilitaire
+    const token = generateToken(newUser._id);
+    console.log(`✅ [Auth] Inscription réussie pour ${username} (${newUser._id})`);
 
     // Envoi de la réponse
     res.status(201).json({

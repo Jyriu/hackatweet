@@ -7,20 +7,42 @@ const Replies = mongoose.model('Replies');
 // Créer un nouveau tweet
 exports.createTweet = async (req, res) => {
     try {
-        const { text, mediaUrl, hashtags } = req.body;
+        const { text, mediaUrl } = req.body; // On ne récupère plus "hashtags" depuis req.body
         if (!req.user) {
             return res.status(401).json({ message: 'Utilisateur non authentifié' });
         }
         if (!text || text.trim() === '') {
             return res.status(400).json({ message: 'Le texte du tweet est requis' });
         }
+
+        // Extraction automatique des hashtags depuis le texte
+        const hashtagRegex = /#(\w+)/g;
+        const extractedHashtags = [];
+        let hashtagMatch;
+        while ((hashtagMatch = hashtagRegex.exec(text)) !== null) {
+            extractedHashtags.push(hashtagMatch[1]);
+        }
+
+        // Extraction des mentions depuis le texte
+        const mentionRegex = /@(\w+)/g;
+        const mentions = [];
+        let match;
+        while ((match = mentionRegex.exec(text)) !== null) {
+            mentions.push(match[1]);
+        }
+
+        // Recherche des utilisateurs mentionnés
+        const mentionedUsers = await User.find({ username: { $in: mentions } }).select('_id');
+        const idmentions = mentionedUsers.map(user => user._id);
+
         const newTweet = new Tweet({
             text,
             mediaUrl,
             author: req.user.id,
             userLikes: [],
             idcommentaires: [],
-            hashtags,
+            idmentions,
+            hashtags: extractedHashtags, // Insertion des hashtags extraits automatiquement
             retweets: [],
             originalTweet: null,
             date: new Date()
@@ -32,6 +54,7 @@ exports.createTweet = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la création du tweet', error: error.message });
     }
 };
+
 
 // Récupérer tous les tweets
 exports.getTweets = async (req, res) => {
@@ -157,7 +180,7 @@ exports.deleteTweet = async (req, res) => {
         if (tweet.author.toString() !== req.user.id) {
             return res.status(403).json({ message: 'Non autorisé' });
         }
-        await tweet.remove();
+        await Tweet.deleteOne({ _id: req.params.id });
         res.json({ message: 'Tweet supprimé avec succès' });
     } catch (error) {
         console.error('Erreur lors de la suppression du tweet:', error);
