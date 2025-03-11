@@ -15,7 +15,11 @@ router.post('/unfollow/:userToUnfollowId', auth, userController.unfollowUser);
 router.get('/:username/followers', userController.getFollowers);
 router.get('/:username/following', userController.getFollowing);
 
-// Route pour les tweets likés
-router.get('/:username/likes', userController.getLikedTweets);
+
+// Route pour mettre à jour les mots-clés et hashtags depuis l'IA
+router.post('/update-keywords', auth, userController.updateKeywordsFromAI);
+
+// Route pour obtenir les utilisateurs suggérés
+router.get('/suggested-users', auth, userController.getSuggestedUsers);
 
 module.exports = router;

@@ -71,6 +71,18 @@ const UserSchema = new Schema({
       type: Date,
       default: Date.now
     }
+  }],
+  hashtagPositif: [{
+    type: String
+  }],
+  hashtagNegatif: [{
+    type: String
+  }],
+  motclefPositif: [{
+    type: String
+  }],
+  motclefNegatif: [{
+    type: String
   }]
 }, {
   timestamps: { 
@@ -79,4 +91,4 @@ const UserSchema = new Schema({
   }
 });
 
-module.exports = mongoose.model('User', UserSchema); 
+module.exports = mongoose.model('User', UserSchema);
