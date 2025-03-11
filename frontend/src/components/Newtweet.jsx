@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import { useDropzone } from "react-dropzone";
 import { UserContext } from "../context/UserContext";
+import { Link } from "react-router-dom";
 
 const NewTweet = ({ onAddTweet }) => {
   const { user } = useContext(UserContext);
@@ -71,7 +72,9 @@ const NewTweet = ({ onAddTweet }) => {
             Connecté en tant que <b>{user.username}</b>
           </Typography>
         ) : (
-          <Typography color="error">Veuillez vous connecter</Typography>
+          <Typography color="error">
+            Veuillez vous <Link to="/login">connecter</Link>
+          </Typography>
         )}
 
         <TextField

@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const path = require("path");
 
 // Importer tous les modèles (nécessaire pour que MongoDB crée les collections)
 require("./models/User");
@@ -15,6 +16,9 @@ const PORT = process.env.PORT || 5001;
 // Middleware de base
 app.use(cors());
 app.use(express.json());
+
+// Exposer le dossier uploads pour servir les images
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Route de test simple
 // Route pour créer un utilisateur test (temporaire)

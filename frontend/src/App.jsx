@@ -10,7 +10,7 @@
 // import Login from "./pages/Login";
 // import Register from "./pages/Register";
 // import { useContext } from "react";
-// import { UserContext, UserProvider } from "./context/UserContext"; // Assurez-vous d'exporter UserProvider dans UserContext.jsx
+// import { UserContext, UserProvider } from "./context/UserContext"; // Assurez-vous que UserProvider est exporté correctement
 // import { Button, AppBar, Toolbar, Typography } from "@mui/material";
 
 // function NavButtons() {
@@ -48,6 +48,7 @@
 //           <NavButtons />
 //         </Toolbar>
 //       </AppBar>
+
 //       <Routes>
 //         <Route path="/" element={<Home />} />
 //         <Route path="/profile" element={<Profile />} />
