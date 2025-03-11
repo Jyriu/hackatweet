@@ -9,26 +9,32 @@ const NotificationSchema = new Schema({
   },
   type: {
     type: String,
-    enum: ['like', 'retweet', 'commentaire', 'abonnement', 'mention'],
+    enum: ['abonnement', 'like', 'retweet', 'commentaire', 'mention'],
     required: true
   },
-  tweetId: {
+  // L'utilisateur qui a déclenché la notification (celui qui like, commente, etc.)
+  triggeredBy: {
     type: Schema.Types.ObjectId,
-    ref: 'Tweet'
+    ref: 'User',
+    required: true
   },
-  followerId: {
+  // Lien vers le contenu concerné (tweet, commentaire)
+  contentId: {
     type: Schema.Types.ObjectId,
-    ref: 'User'
+    refPath: 'contentModel'
   },
-  replyId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Commentaire'
+  // Type de contenu concerné ('Tweet' ou 'Replies')
+  contentModel: {
+    type: String,
+    enum: ['Tweet', 'Replies'],
+    default: 'Tweet'
   },
+  // Statut de lecture de la notification
   read: {
     type: Boolean,
     default: false
   },
-  date: {
+  createdAt: {
     type: Date,
     default: Date.now
   }

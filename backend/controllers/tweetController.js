@@ -128,6 +128,19 @@ exports.likeTweet = async (req, res) => {
         user.likes.push(tweet.id);
         await user.save();
         await tweet.save();
+        
+        // Créer une notification pour l'auteur du tweet (si ce n'est pas l'utilisateur lui-même)
+        if (tweet.author.toString() !== req.user.id) {
+            await global.sendNotification({
+                userId: tweet.author,
+                type: 'like',
+                triggeredBy: req.user.id,
+                contentId: tweet._id,
+                contentModel: 'Tweet',
+                read: false
+            });
+        }
+        
         res.json(tweet);
     } catch (error) {
         console.error('Erreur lors de l\'ajout du like:', error);
