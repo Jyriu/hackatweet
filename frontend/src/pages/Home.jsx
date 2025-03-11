@@ -2,32 +2,28 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Container, Typography, Grid, CircularProgress, Box } from "@mui/material";
 import Tweet from "../components/Tweet";
 import NewTweet from "../components/Newtweet";
+import axios from "axios";
 
 const Home = () => {
   const [tweets, setTweets] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // Récupération de l'URL du backend depuis l'environnement VITE_BACKEND_URL
+  const [emotionData, setEmotionData] = useState(null);
+  const [visibleTweetId, setVisibleTweetId] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const tweetsContainerRef = useRef(null);
+
   const url = import.meta.env.VITE_BACKEND_URL;
 
-  // Charger les tweets depuis le backend au démarrage
-  const [emotionData, setEmotionData] = useState(null); // State for emotion analysis results
-  const [visibleTweetId, setVisibleTweetId] = useState(null); // State for the currently visible tweet ID
-  const videoRef = useRef(null); // Ref for the video element
-  const canvasRef = useRef(null); // Ref for the canvas element
-  const tweetsContainerRef = useRef(null); // Ref for the tweets container
-
-
-  
-  // Charger les tweets depuis localStorage au démarrage
+  // Charger les tweets depuis le backend
   useEffect(() => {
     const fetchTweets = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await axios.get(url + "/api/tweet/tweets", {
+        const response = await axios.get(`${url}/api/tweet/tweets`, {
           headers: {
-            Authorization: `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         });
         setTweets(response.data);
       } catch (err) {
@@ -39,14 +35,13 @@ const Home = () => {
     fetchTweets();
   }, [url]);
 
-  // Ajouter un nouveau tweet à la liste (mise à jour côté frontend)
+  // Ajouter un nouveau tweet à la liste
   const addNewTweet = (newTweet) => {
     setTweets([newTweet, ...tweets]);
   };
 
-  // Initialize camera and WebSocket connection
+  // Initialiser la caméra et la connexion WebSocket
   useEffect(() => {
-    // Initialize camera
     const initCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
@@ -60,30 +55,24 @@ const Home = () => {
 
     initCamera();
 
-    // Initialize WebSocket connection
     const socket = new WebSocket("ws://127.0.0.1:8000/ws/emotions/");
-
-    socket.onopen = () => {
-      console.log("Connexion WebSocket établie.");
-    };
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      setEmotionData(data); // Update emotion analysis results
+      setEmotionData(data);
     };
 
     socket.onerror = (error) => {
       console.error("Erreur WebSocket :", error);
     };
 
-    // Capture and send frame every second
     const sendFrame = () => {
       if (videoRef.current && canvasRef.current) {
         const context = canvasRef.current.getContext("2d");
         canvasRef.current.width = videoRef.current.videoWidth;
         canvasRef.current.height = videoRef.current.videoHeight;
         context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-        const frameData = canvasRef.current.toDataURL("image/jpeg", 0.8); // qualité 80%
+        const frameData = canvasRef.current.toDataURL("image/jpeg", 0.8);
         if (socket.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify({ frame: frameData }));
         }
@@ -92,14 +81,13 @@ const Home = () => {
 
     const intervalId = setInterval(sendFrame, 1000);
 
-    // Cleanup
     return () => {
       clearInterval(intervalId);
       socket.close();
     };
   }, []);
 
-  // Track the currently visible tweet
+  // Suivre le tweet visible
   const handleScroll = useCallback(() => {
     if (tweetsContainerRef.current) {
       const container = tweetsContainerRef.current;
@@ -109,23 +97,18 @@ const Home = () => {
         const tweet = tweets[i];
         const rect = tweet.getBoundingClientRect();
 
-        // Check if the tweet is fully visible as the first in the container
         if (rect.top >= 0 && rect.bottom <= container.clientHeight) {
           const tweetId = tweet.getAttribute("data-tweet-id");
           if (tweetId !== visibleTweetId) {
             setVisibleTweetId(tweetId);
-
-            // Log the tweet ID and emotion data
-            console.log("Visible Tweet ID:", tweetId);
-            console.log("Emotion Data:", emotionData);
           }
           break;
         }
       }
     }
-  }, [visibleTweetId, emotionData]);
+  }, [visibleTweetId]);
 
-  // Add scroll event listener to the tweets container
+  // Ajouter un écouteur de défilement
   useEffect(() => {
     const container = tweetsContainerRef.current;
     if (container) {
@@ -145,10 +128,8 @@ const Home = () => {
         Fil d'actualité
       </Typography>
 
-      {/* Formulaire pour publier un tweet */}
       <NewTweet onAddTweet={addNewTweet} />
 
-      {/* Affichage des tweets */}
       {loading ? (
         <Grid container justifyContent="center" sx={{ marginTop: 3 }}>
           <CircularProgress />
@@ -166,7 +147,7 @@ const Home = () => {
         >
           <Grid container spacing={2}>
             {tweets.map((tweet) => (
-              <Grid item xs={12} key={tweet.idTweet} className="tweet-item" data-tweet-id={tweet.idTweet}>
+              <Grid item xs={12} key={tweet._id || tweet.idTweet} className="tweet-item" data-tweet-id={tweet._id || tweet.idTweet}>
                 <Tweet tweet={tweet} />
               </Grid>
             ))}
@@ -174,7 +155,6 @@ const Home = () => {
         </Box>
       )}
 
-      {/* Emotion Analysis Section */}
       <Grid container spacing={4} sx={{ marginTop: 4 }}>
         <Grid item xs={12}>
           <Typography variant="h5" gutterBottom>
@@ -198,13 +178,7 @@ const Home = () => {
         </Grid>
       </Grid>
 
-      {/* Hidden video and canvas for capturing frames */}
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        style={{ display: "none" }} // Hide the video element
-      />
+      <video ref={videoRef} autoPlay playsInline style={{ display: "none" }} />
       <canvas ref={canvasRef} style={{ display: "none" }} />
     </Container>
   );
