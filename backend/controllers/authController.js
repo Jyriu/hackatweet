@@ -3,6 +3,16 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = mongoose.model('User');
 
+// Fonction utilitaire pour générer un token JWT
+const generateToken = (userId) => {
+  console.log(`ℹ️ [Auth] Génération de token pour l'utilisateur ${userId}`);
+  return jwt.sign(
+    { id: userId }, 
+    process.env.JWT_SECRET, 
+    { expiresIn: '7d' }
+  );
+};
+
 // Inscription d'un nouvel utilisateur
 exports.register = async (req, res) => {
   try {
@@ -38,12 +48,9 @@ exports.register = async (req, res) => {
     // Sauvegarde de l'utilisateur
     await newUser.save();
 
-    // Génération du token JWT
-    const token = jwt.sign(
-      { id: newUser._id }, 
-      'secret_value', 
-      { expiresIn: '7d' }
-    );
+    // Génération du token JWT avec la fonction utilitaire
+    const token = generateToken(newUser._id);
+    console.log(`✅ [Auth] Inscription réussie pour ${username} (${newUser._id})`);
 
     // Envoi de la réponse
     res.status(201).json({
@@ -61,7 +68,7 @@ exports.register = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Erreur lors de l\'inscription:', error);
+    console.error(`📛 [Auth] Erreur lors de l'inscription: ${error.message}`, error);
     res.status(500).json({ message: 'Erreur lors de l\'inscription', error: error.message });
   }
 };
@@ -83,12 +90,9 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
     }
 
-    // Génération du token JWT
-    const token = jwt.sign(
-      { id: user._id }, 
-      process.env.JWT_SECRET, 
-      { expiresIn: '7d' }
-    );
+    // Génération du token JWT avec la fonction utilitaire
+    const token = generateToken(user._id);
+    console.log(`✅ [Auth] Connexion réussie pour ${user.username} (${user._id})`);
 
     // Envoi de la réponse
     res.json({
@@ -106,7 +110,7 @@ exports.login = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Erreur lors de la connexion:', error);
+    console.error(`📛 [Auth] Erreur lors de la connexion: ${error.message}`, error);
     res.status(500).json({ message: 'Erreur lors de la connexion', error: error.message });
   }
 };
@@ -122,7 +126,7 @@ exports.getCurrentUser = async (req, res) => {
     
     res.json(user);
   } catch (error) {
-    console.error('Erreur lors de la récupération de l\'utilisateur:', error);
+    console.error(`📛 [Auth] Erreur lors de la récupération de l'utilisateur: ${error.message}`, error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };

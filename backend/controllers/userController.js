@@ -7,17 +7,17 @@ exports.getUserByUsername = async (req, res) => {
   try {
     const { username } = req.params;
 
-
     const user = await User.findOne({ username }).select('-password');
 
     if (!user) {
+      console.warn(`⚠️ [User] Utilisateur non trouvé avec le username: ${username}`);
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
-
+    console.log(`ℹ️ [User] Profil récupéré: ${username}`);
     res.json(user);
   } catch (error) {
-    console.error('Erreur lors de la récupération du profil:', error);
+    console.error(`📛 [User] Erreur lors de la récupération du profil: ${error.message}`, error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
@@ -25,16 +25,15 @@ exports.getUserByUsername = async (req, res) => {
 // Mettre à jour le profil utilisateur
 exports.updateProfile = async (req, res) => {
   try {
-
     const { bio, photo, banner, nom, prenom } = req.body;
     const userId = req.user.id;
 
     // Vérifier que l'utilisateur existe
     const user = await User.findById(userId);
     if (!user) {
+      console.warn(`⚠️ [User] Tentative de mise à jour d'un utilisateur inexistant: ${userId}`);
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
-
 
     // Mettre à jour uniquement les champs fournis
     if (bio !== undefined) user.bio = bio;
@@ -44,6 +43,7 @@ exports.updateProfile = async (req, res) => {
     if (prenom !== undefined) user.prenom = prenom;
 
     await user.save();
+    console.log(`✅ [User] Profil mis à jour pour l'utilisateur ${userId}`);
 
     res.json({
       message: 'Profil mis à jour avec succès',
@@ -59,7 +59,7 @@ exports.updateProfile = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Erreur lors de la mise à jour du profil:', error);
+    console.error(`📛 [User] Erreur lors de la mise à jour du profil: ${error.message}`, error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
@@ -67,51 +67,52 @@ exports.updateProfile = async (req, res) => {
 // Suivre un utilisateur
 exports.followUser = async (req, res) => {
   try {
-    const { userToFollowId } = req.params;
-    const userId = req.user.id;
+    const userToFollow = req.params.userToFollowId;
+    const currentUser = req.user.id;
+
+    // Vérifier que l'utilisateur n'essaie pas de s'abonner à lui-même
+    if (userToFollow === currentUser) {
+      console.warn(`⚠️ [User] Utilisateur ${currentUser} tente de s'abonner à lui-même`);
+      return res.status(400).json({ message: 'Vous ne pouvez pas vous abonner à vous-même' });
+    }
 
     // Vérifier que l'utilisateur à suivre existe
-    const userToFollow = await User.findById(userToFollowId);
-    if (!userToFollow) {
+    const userToFollowDoc = await User.findById(userToFollow);
+    if (!userToFollowDoc) {
+      console.warn(`⚠️ [User] Tentative d'abonnement à un utilisateur inexistant: ${userToFollow}`);
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
-    // Vérifier que l'utilisateur ne se suit pas lui-même
-    if (userToFollowId === userId) {
-      return res.status(400).json({ message: 'Vous ne pouvez pas vous suivre vous-même' });
-    }
-
-    // Vérifier si l'utilisateur suit déjà la personne
-    const user = await User.findById(userId);
-    if (user.following.includes(userToFollowId)) {
+    // Vérifier si l'utilisateur est déjà abonné
+    const currentUserDoc = await User.findById(currentUser);
+    if (currentUserDoc.following.includes(userToFollow)) {
+      console.warn(`⚠️ [User] Utilisateur ${currentUser} est déjà abonné à ${userToFollow}`);
       return res.status(400).json({ message: 'Vous suivez déjà cet utilisateur' });
     }
 
-    // Ajouter l'utilisateur à suivre à la liste des following de l'utilisateur actuel
-    await User.findByIdAndUpdate(userId, {
-      $push: { following: userToFollowId }
+    // Ajouter l'utilisateur aux abonnements de l'utilisateur courant
+    await User.findByIdAndUpdate(currentUser, {
+      $push: { following: userToFollow }
     });
 
-    // Ajouter l'utilisateur actuel à la liste des followers de l'utilisateur à suivre
-    await User.findByIdAndUpdate(userToFollowId, {
-      $push: { followers: userId }
+    // Ajouter l'utilisateur courant aux abonnés de l'utilisateur à suivre
+    await User.findByIdAndUpdate(userToFollow, {
+      $push: { followers: currentUser }
     });
 
-    // Créer une notification d'abonnement
-    const Notification = mongoose.model('Notification');
-    const newNotification = new Notification({
-      userId: userToFollowId,
+    // Créer une notification pour informer l'utilisateur qu'il a un nouvel abonné
+    await global.sendNotification({
+      userId: userToFollow,
       type: 'abonnement',
-      followerId: userId
+      triggeredBy: currentUser,
+      read: false
     });
-
-
-    await newNotification.save();
-
-    res.json({ message: 'Vous suivez maintenant cet utilisateur' });
+    
+    console.log(`✅ [User] Utilisateur ${currentUser} s'est abonné à ${userToFollow}`);
+    res.json({ message: 'Abonnement réussi' });
   } catch (error) {
-    console.error('Erreur lors du suivi:', error);
-    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    console.error(`📛 [User] Erreur lors de l'abonnement: ${error.message}`, error);
+    res.status(500).json({ message: 'Erreur lors de l\'abonnement', error: error.message });
   }
 };
 
@@ -124,12 +125,14 @@ exports.unfollowUser = async (req, res) => {
     // Vérifier que l'utilisateur à ne plus suivre existe
     const userToUnfollow = await User.findById(userToUnfollowId);
     if (!userToUnfollow) {
+      console.warn(`⚠️ [User] Tentative d'unfollow d'un utilisateur inexistant: ${userToUnfollowId}`);
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
     // Vérifier si l'utilisateur suit déjà la personne
     const user = await User.findById(userId);
     if (!user.following.includes(userToUnfollowId)) {
+      console.warn(`⚠️ [User] Utilisateur ${userId} ne suit pas ${userToUnfollowId}`);
       return res.status(400).json({ message: 'Vous ne suivez pas cet utilisateur' });
     }
 
@@ -143,9 +146,10 @@ exports.unfollowUser = async (req, res) => {
       $pull: { followers: userId }
     });
 
+    console.log(`✅ [User] Utilisateur ${userId} a cessé de suivre ${userToUnfollowId}`);
     res.json({ message: 'Vous ne suivez plus cet utilisateur' });
   } catch (error) {
-    console.error('Erreur lors du unfollow:', error);
+    console.error(`📛 [User] Erreur lors du unfollow: ${error.message}`, error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
@@ -159,6 +163,7 @@ exports.getSuggestedUsers = async (req, res) => {
     const user = await User.findById(userId).populate('following');
     
     if (!user) {
+      console.warn(`⚠️ [User] Utilisateur inexistant pour les suggestions: ${userId}`);
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
     
@@ -209,9 +214,10 @@ exports.getSuggestedUsers = async (req, res) => {
       };
     });
     
+    console.log(`ℹ️ [User] ${suggestedUsers.length} utilisateurs suggérés pour ${userId}`);
     res.json(enhancedSuggestions);
   } catch (error) {
-    console.error('Erreur lors de la récupération des suggestions:', error);
+    console.error(`📛 [User] Erreur lors de la récupération des suggestions: ${error.message}`, error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
@@ -316,6 +322,52 @@ exports.updateKeywordsFromAI = async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur lors de la mise à jour des mots-clés:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+// Basculer un paramètre utilisateur (caméra, notifications, etc.)
+exports.toggleUserSetting = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { setting } = req.params; // Le paramètre à modifier (cameraOn, notifOn, etc.)
+    
+    // Vérifier que le paramètre demandé est valide
+    const validSettings = ['cameraOn', 'notifOn'];
+    if (!validSettings.includes(setting)) {
+      return res.status(400).json({ 
+        message: `Paramètre invalide. Paramètres disponibles: ${validSettings.join(', ')}` 
+      });
+    }
+    
+    // Récupérer l'utilisateur
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Inverser la valeur actuelle du paramètre
+    user[setting] = !user[setting];
+    
+    // Sauvegarder les modifications
+    await user.save();
+    
+    // Préparer un message adapté au paramètre modifié
+    let message = '';
+    if (setting === 'cameraOn') {
+      message = `Caméra ${user.cameraOn ? 'activée' : 'désactivée'} avec succès`;
+    } else if (setting === 'notifOn') {
+      message = `Notifications ${user.notifOn ? 'activées' : 'désactivées'} avec succès`;
+    }
+    
+    // Retourner le statut mis à jour
+    res.json({
+      message,
+      [setting]: user[setting]
+    });
+  } catch (error) {
+    console.error(`Erreur lors de la mise à jour du paramètre:`, error);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
