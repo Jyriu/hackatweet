@@ -2,12 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const { faker } = require('@faker-js/faker');
 
 // Importer tous les modèles (nécessaire pour que MongoDB crée les collections)
 require('./models/User');
 require('./models/Tweet');
 require('./models/Replies');
 require('./models/Notification');
+require('./models/Emotion');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -52,17 +54,45 @@ app.get('/api/test', async (req, res) => {
 const authRoutes = require('./routes/authRoutes');
 const tweetRoutes = require('./routes/tweetRoutes');
 const userRoutes = require('./routes/userRoutes');
+const emotionRoutes = require('./routes/emotionRoutes');
+
 
 // Application des routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tweet', tweetRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/emotions', emotionRoutes)
+
+const createTweets = async () => {
+  try {
+    const Tweet = mongoose.model('Tweet');
+    const tweets = [];
+    const authorId = '67d00c5e00073dd855bac0a5';
+
+    for (let i = 0; i < 100; i++) {
+      const tweet = new Tweet({
+        text: faker.lorem.sentence(),
+        author: authorId,
+        hashtags: [faker.lorem.word(), faker.lorem.word()],
+        date: faker.date.past(),
+      });
+
+      tweets.push(tweet);
+    }
+
+    await Tweet.insertMany(tweets);
+    console.log('100 tweets created successfully');
+  } catch (error) {
+    console.error('Error creating tweets:', error);
+  } 
+};
+
 
 // Connexion à MongoDB puis démarrage du serveur
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('Connecté à MongoDB');
-
+    //createTweets()
     // Démarrage du serveur après connexion réussie
     app.listen(PORT, () => {
       console.log(`Serveur démarré sur le port ${PORT}`);

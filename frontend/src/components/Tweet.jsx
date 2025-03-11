@@ -33,8 +33,8 @@ const Tweet = ({ tweet }) => {
   return (
     <Card sx={{ marginBottom: 2, padding: 2 }}>
       <CardContent>
-        <Typography variant="h6">@{tweet.auteur}</Typography>
-        <Typography variant="body1">{tweet.contentxt}</Typography>
+        <Typography variant="h6">{tweet._id}</Typography>
+        <Typography variant="body1">{tweet.text}</Typography>
         {tweet.mediaUrl && (
           <img src={tweet.mediaUrl} alt="Tweet media" style={{ width: "100%", borderRadius: "10px", marginTop: "10px" }} />
         )}
