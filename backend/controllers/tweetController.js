@@ -55,6 +55,18 @@ exports.getUserTweets = async (req, res) => {
     }
 };
 
+// Récupérer les tweets likés par l'utilisateur connecté
+exports.getLikedTweetsByUser = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        const tweets = await Tweet.find({ _id: { $in: user.likes } }).populate('author', 'username');
+        res.json(tweets);
+    } catch (error) {
+        console.error('Erreur lors de la récupération des tweets likés par l\'utilisateur:', error);
+        res.status(500).json({ message: 'Erreur lors de la récupération des tweets likés par l\'utilisateur', error: error.message });
+    }
+};
+
 // Récupérer un tweet par ID
 exports.getTweetById = async (req, res) => {
     try {
@@ -68,6 +80,46 @@ exports.getTweetById = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la récupération du tweet', error: error.message });
     }
 };
+
+// Récupérer les tweets des personnes suivies par l'utilisateur connecté
+exports.getFollowingTweets = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).populate('following');
+        const followingIds = user.following.map(following => following._id);
+        const tweets = await Tweet.find({ author: { $in: followingIds } }).populate('author', 'username');
+        res.json(tweets);
+    } catch (error) {
+        console.error('Erreur lors de la récupération des tweets des personnes suivies:', error);
+        res.status(500).json({ message: 'Erreur lors de la récupération des tweets des personnes suivies', error: error.message });
+    }
+};
+
+// Récupérer les tweets likés par les abonnés de l'utilisateur connecté
+exports.getLikedTweetsByFollowers = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).populate('followers');
+        const followerIds = user.followers.map(follower => follower._id);
+        const tweets = await Tweet.find({ userLikes: { $in: followerIds } }).populate('author', 'username');
+        res.json(tweets);
+    } catch (error) {
+        console.error('Erreur lors de la récupération des tweets likés par les abonnés:', error);
+        res.status(500).json({ message: 'Erreur lors de la récupération des tweets likés par les abonnés', error: error.message });
+    }
+};
+
+// Récupérer les tweets likés par les abonnements de l'utilisateur connecté
+exports.getLikedTweetsByFollowings = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).populate('followers');
+        const followingIds = user.following.map(follower => follower._id);
+        const tweets = await Tweet.find({ userLikes: { $in: followingIds } }).populate('author', 'username');
+        res.json(tweets);
+    } catch (error) {
+        console.error('Erreur lors de la récupération des tweets likés par les abonnés:', error);
+        res.status(500).json({ message: 'Erreur lors de la récupération des tweets likés par les abonnés', error: error.message });
+    }
+};
+
 
 // Mettre à jour un tweet
 exports.updateTweet = async (req, res) => {
@@ -138,23 +190,24 @@ exports.likeTweet = async (req, res) => {
 // Retweeter un tweet
 exports.retweet = async (req, res) => {
     try {
+        const { text, mediaUrl, hashtags } = req.body;
         const originalTweet = await Tweet.findById(req.params.id);
         if (!originalTweet) {
             return res.status(404).json({ message: 'Tweet non trouvé' });
         }
         const newTweet = new Tweet({
-            text: originalTweet.text,
-            mediaUrl: originalTweet.mediaUrl,
+            text: text,
+            mediaUrl: mediaUrl,
             author: req.user.id,
             userLikes: [],
             idcommentaires: [],
-            hashtags: originalTweet.hashtags,
+            hashtags: hashtags,
             retweets: [],
             originalTweet: originalTweet._id,
             date: new Date()
         });
         await newTweet.save();
-        originalTweet.retweets.push({ user: req.user.id, date: new Date() });
+        originalTweet.retweets.push(newTweet.id);
         await originalTweet.save();
         res.status(201).json(newTweet);
     } catch (error) {
@@ -193,5 +246,26 @@ exports.addComment = async (req, res) => {
     }
 };
 
+// Ajouter un like à un commentaire
+exports.likeComment = async (req, res) => {
+    try {
+        const comment = await Replies.findById(req.params.id);
+        const user = await User.findById(req.user.id);
+        if (!comment) {
+            return res.status(404).json({ message: 'Commentaire non trouvé' });
+        }
+        if (comment.userLikes.includes(req.user.id)) {
+            return res.status(400).json({ message: 'Vous avez déjà liké ce commentaire' });
+        }
+        comment.userLikes.push(req.user.id);
+        user.likes.push(comment.id);
+        await user.save();
+        await comment.save();
+        res.json(comment);
+    } catch (error) {
+        console.error('Erreur lors de l\'ajout du like:', error);
+        res.status(500).json({ message: 'Erreur lors de l\'ajout du like', error: error.message });
+    }
+};
 
 
