@@ -11,6 +11,11 @@ router.get('/tweets', auth, tweetController.getTweets);
 router.post('/like/:id', auth, tweetController.likeTweet);
 router.post('/retweet/:id', auth, tweetController.retweet);
 router.get('/userTweets', auth, tweetController.getUserTweets);
-router.post('/comment/:id', auth, tweetController.addComment); // Add this line
+router.post('/comment/:id', auth, tweetController.addComment);
+router.post('/likeComment/:id', auth, tweetController.likeComment);
+router.get('/followingTweets', auth, tweetController.getFollowingTweets);
+router.get('/likedTweetsByFollowers', auth, tweetController.getLikedTweetsByFollowers);
+router.get('/getLikedTweetsByFollowings', auth, tweetController.getLikedTweetsByFollowings);
+router.get('/likedTweetsByUser', auth, tweetController.getLikedTweetsByUser);
 
 module.exports = router;
