@@ -41,7 +41,7 @@ exports.register = async (req, res) => {
     // Génération du token JWT
     const token = jwt.sign(
       { id: newUser._id }, 
-      process.env.JWT_SECRET, 
+      'secret_value', 
       { expiresIn: '7d' }
     );
 
