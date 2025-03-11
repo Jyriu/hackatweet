@@ -23,18 +23,16 @@ const TweetSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'Replies'
   }],
+  idmentions: [{
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   hashtags: [{
     type: String
   }],
   retweets: [{
-    user: {
-      type: Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    date: {
-      type: Date,
-      default: Date.now
-    }
+    type: Schema.Types.ObjectId,
+    ref: 'Tweet'
   }],
   originalTweet: {
     type: Schema.Types.ObjectId,
@@ -46,5 +44,4 @@ const TweetSchema = new Schema({
   }
 });
 
-
-module.exports = mongoose.model('Tweet', TweetSchema); 
+module.exports = mongoose.model('Tweet', TweetSchema);

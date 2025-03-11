@@ -9,28 +9,26 @@ exports.auth = async (req, res, next) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
     if (!token) {
-      return res.status(401).json({ message: 'Accès non autorisé, token manquant' });
+      console.warn(`⚠️ [Auth] Tentative d'accès sans token: ${req.originalUrl}`);
+      return res.status(401).json({ message: 'Authentification requise' });
     }
     
-    // Vérifier et décoder le token
+    // Vérifier le token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Vérifier que l'utilisateur existe toujours
     const user = await User.findById(decoded.id).select('-password');
     
     if (!user) {
+      console.warn(`⚠️ [Auth] Token valide mais utilisateur introuvable: ${decoded.id}`);
       return res.status(401).json({ message: 'Utilisateur non trouvé' });
     }
     
-    // Ajouter les informations de l'utilisateur à la requête
-    req.user = {
-      id: user._id.toString(),
-      username: user.username
-    };
-    
+    // Ajouter les informations utilisateur à l'objet request
+    req.user = user;
+    req.token = token;
+    console.log(`ℹ️ [Auth] Accès autorisé à ${req.originalUrl} pour l'utilisateur ${user.username} (${user._id})`);
     next();
   } catch (error) {
-    console.error('Erreur d\'authentification:', error);
+    console.error(`📛 [Auth] Erreur d'authentification: ${error.message}`);
     
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ message: 'Token invalide' });
