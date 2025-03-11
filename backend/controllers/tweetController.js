@@ -165,6 +165,17 @@ exports.deleteTweet = async (req, res) => {
     }
 };
 
+// Supprimer tous les tweets
+exports.deleteAllTweets = async (req, res) => {
+    try {
+        await Tweet.deleteMany({});
+        res.json({ message: 'Tous les tweets ont été supprimés avec succès' });
+    } catch (error) {
+        console.error('Erreur lors de la suppression de tous les tweets:', error);
+        res.status(500).json({ message: 'Erreur lors de la suppression de tous les tweets', error: error.message });
+    }
+};
+
 // Ajouter un like à un tweet
 exports.likeTweet = async (req, res) => {
     try {
