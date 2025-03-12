@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Tweet = mongoose.model('Tweet');
 const User = mongoose.model('User');
 const Replies = mongoose.model('Replies');
+const Emotion = mongoose.model('Emotion');
 
 // Créer un nouveau tweet
 exports.createTweet = async (req, res) => {
@@ -70,31 +71,93 @@ exports.getTweets2 = async (req, res) => {
 exports.getTweets = async (req, res) => {
     try {
       const { page = 1, limit = 10, userId } = req.query;
+      const parsedLimit = parseInt(limit);
+      const parsedPage = parseInt(page);
   
-      // Find the user to get their positive_hashtags
+      // 1. Find the user and their negative hashtags
       const user = await User.findById(userId);
-      const positiveHashtags = user?.positive_hashtags || [];
+    
+      const negativeHashtags = user?.hashtagNegatif || [];
   
-      // Query to fetch tweets
-      let query = Tweet.find().populate('author', 'username');
+      // 2. Get seen tweet IDs
+      const seenTweetIds = await Emotion.find({ user_id: userId }).distinct('tweet_id');
+      console.log(seenTweetIds)
+      let allMatchingTweets = [];
+      let currentPage = parsedPage;
   
-      // Filter tweets based on positive_hashtags (after the first load)
-      if (positiveHashtags.length > 0) {
-        query = query.where('hashtags').in(positiveHashtags);
+      while (allMatchingTweets.length < parsedLimit) {
+        // 3. Build query for unseen tweets
+        let query = Tweet.find({
+            _id: { $nin: seenTweetIds }
+          })
+          .populate('author', 'username')
+          .sort({ createdAt: -1 });
+  
+        // 4. Paginate and execute the query
+        const tweets = await query
+          .skip((currentPage - 1) * parsedLimit)
+          .limit(parsedLimit)
+          .lean()
+          .exec();
+  
+        if (tweets.length === 0) {
+          // No more tweets to fetch
+          break;
+        }
+  
+        console.log(negativeHashtags)
+        // 5. Filter out tweets containing any negative hashtags
+        const filteredTweets = tweets.filter(tweet => {
+          if (!tweet.hashtags) return true; // If no hashtags, keep the tweet
+          return !tweet.hashtags.some(hashtag => negativeHashtags.includes(hashtag));
+        });
+
+       
+  
+        // 6. Add filtered tweets to the result
+        allMatchingTweets = [...allMatchingTweets, ...filteredTweets];
+  
+        if (allMatchingTweets.length >= parsedLimit) {
+          // We have enough tweets
+          break;
+        }
+  
+        // 7. Increment the page for the next iteration
+        currentPage++;
+  
+        // 8. Add processed tweets to seenTweetIds
+        tweets.forEach(tweet => {
+          if (!seenTweetIds.includes(tweet._id)) {
+            seenTweetIds.push(tweet._id);
+          }
+        });
       }
   
-      // Paginate the results
-      const tweets = await query
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec();
+      // 9. Truncate the result to the requested limit
+      const finalTweets = allMatchingTweets.slice(0, parsedLimit);
   
-      res.json(tweets);
+      // 10. Get the total number of tweets matching criteria
+      const totalMatchingTweets = await Tweet.countDocuments({
+        _id: { $nin: seenTweetIds },
+        hashtags: { $not: { $in: negativeHashtags } }
+      });
+  
+      const hasMore = totalMatchingTweets > ((parsedPage) * parsedLimit);
+      res.json({
+        tweets: finalTweets,
+        hasMore,
+        total: totalMatchingTweets
+      });
+  
     } catch (error) {
-      console.error('Erreur lors de la récupération des tweets:', error);
-      res.status(500).json({ message: 'Erreur lors de la récupération des tweets', error: error.message });
+      console.error('Error fetching tweets:', error);
+      res.status(500).json({
+        message: 'Error fetching tweets',
+        error: error.message
+      });
     }
   };
+  
 
 // Récupérer tous les tweets de l'utilisateur connecté
 exports.getUserTweets = async (req, res) => {

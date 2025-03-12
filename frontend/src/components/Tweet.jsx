@@ -5,7 +5,7 @@ import RepeatIcon from "@mui/icons-material/Repeat";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 
 const Tweet = ({ tweet }) => {
-  const [likes, setLikes] = useState(tweet.userLikes.length);
+  //const [likes, setLikes] = useState(tweet.userLikes.length);
   const [liked, setLiked] = useState(false);
   const [retweets, setRetweets] = useState(0);
   const [retweeted, setRetweeted] = useState(false);
@@ -14,7 +14,7 @@ const Tweet = ({ tweet }) => {
   const [newComment, setNewComment] = useState("");
 
   const handleLike = () => {
-    setLikes(liked ? likes - 1 : likes + 1);
+    //setLikes(liked ? likes - 1 : likes + 1);
     setLiked(!liked);
   };
 
@@ -42,7 +42,7 @@ const Tweet = ({ tweet }) => {
           <IconButton onClick={handleLike} color={liked ? "error" : "default"}>
             <FavoriteIcon />
           </IconButton>
-          <Typography>{likes}</Typography>
+          {/* <Typography>{likes}</Typography> */}
 
           <IconButton onClick={handleRetweet} color={retweeted ? "success" : "default"}>
             <RepeatIcon />
@@ -82,3 +82,5 @@ const Tweet = ({ tweet }) => {
 };
 
 export default Tweet;
+
+

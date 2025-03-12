@@ -3,24 +3,36 @@ import { Container, Typography, Grid, CircularProgress, Box } from "@mui/materia
 import Tweet from "../components/Tweet";
 import NewTweet from "../components/NewTweet";
 import axios from "axios";
-import { v4 as uuidv4 } from 'uuid';
+
 const Home = () => {
   const [tweets, setTweets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [emotionData, setEmotionData] = useState(null); // State for emotion analysis results
-  const [visibleTweetId, setVisibleTweetId] = useState(null); // State for the currently visible tweet ID
-  const [page, setPage] = useState(1); // State for pagination
-  const [hasMore, setHasMore] = useState(true); // State to track if more tweets are available
-  const videoRef = useRef(null); // Ref for the video element
-  const canvasRef = useRef(null); // Ref for the canvas element
-  const tweetsContainerRef = useRef(null); // Ref for the tweets container
+  const [emotionData, setEmotionData] = useState(null);
+  const [visibleTweetId, setVisibleTweetId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const tweetsContainerRef = useRef(null);
+  const isFetching = useRef(false); // To prevent duplicate fetches
+  const userId = "67d00c5e00073dd855bac0a5";
+  // Fetch tweets from the backend
+  const fetchTweets = useCallback(async (pageNumber) => {
+    if (isFetching.current || !hasMore) return; // Prevent duplicate calls
+    isFetching.current = true; // Lock fetching
 
-  // Load tweets from the backend
-  const fetchTweets = async (page) => {
     try {
-      const response = await axios.get(`http://localhost:5001/api/tweet/tweets?page=${page}&limit=10`);
-      if (response.data.length > 0) {
-        setTweets((prevTweets) => [...prevTweets, ...response.data]);
+      setLoading(true);
+      const response = await axios.get(`http://localhost:5001/api/tweet/tweets?page=${pageNumber}&limit=10&userId=${userId}`);
+console.log(response)
+      if (response.data.tweets.length > 0) {
+        setTweets((prevTweets) => {
+          // Filter out duplicates before adding new tweets
+          const newTweets = response.data.tweets.filter(
+            (newTweet) => !prevTweets.some((existingTweet) => existingTweet._id === newTweet._id)
+          );
+          return [...prevTweets, ...newTweets];
+        });
       } else {
         setHasMore(false); // No more tweets to load
       }
@@ -28,24 +40,27 @@ const Home = () => {
       console.error("Error fetching tweets:", error);
     } finally {
       setLoading(false);
+      isFetching.current = false; // Unlock fetching
     }
-  };
+  }, [hasMore]);
 
   // Load initial tweets
   useEffect(() => {
-    fetchTweets(page);
-  }, []);
+    fetchTweets(1); // Load the first page on mount
+  }, [fetchTweets]);
 
-  // Add a new tweet and save to localStorage
+  // Load more tweets when the page changes
+  useEffect(() => {
+    if (page > 1) fetchTweets(page); // Fetch new tweets only if page > 1
+  }, [page, fetchTweets]);
+
+  // Add a new tweet
   const addNewTweet = (newTweet) => {
-    const updatedTweets = [newTweet, ...tweets];
-    setTweets(updatedTweets);
-    localStorage.setItem("tweets", JSON.stringify(updatedTweets));
+    setTweets((prevTweets) => [newTweet, ...prevTweets]); // Add the new tweet to the top
   };
 
   // Initialize camera and WebSocket connection
   useEffect(() => {
-    // Initialize camera
     const initCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
@@ -59,7 +74,6 @@ const Home = () => {
 
     initCamera();
 
-    // Initialize WebSocket connection
     const socket = new WebSocket("ws://127.0.0.1:8000/ws/emotions/");
 
     socket.onopen = () => {
@@ -107,67 +121,64 @@ const Home = () => {
         tweet_id: tweetId,
         emotion: emotion,
       });
-      //console.log("Emotion saved for tweet:", tweetId);
     } catch (error) {
       console.error("Error saving emotion:", error);
     }
   };
 
-  // Track the currently visible tweet
-  const handleScroll = useCallback(() => {
-    if (tweetsContainerRef.current) {
-      const container = tweetsContainerRef.current;
-      const tweets = container.querySelectorAll(".tweet-item");
+  // Handle scroll event with debouncing
+  const lastTweetRef = useRef(null); // Garde en mémoire le dernier tweet affiché
 
-      // Check if the user has scrolled to the bottom
-      if (
-        container.scrollTop + container.clientHeight >= container.scrollHeight - 100 &&
-        hasMore &&
-        !loading
-      ) {
-        setPage((prevPage) => prevPage + 1); // Load the next page of tweets
-        fetchTweets(page + 1);
-      }
+const handleScroll = useCallback(() => {
+  if (!tweetsContainerRef.current) return;
 
-      // Track the first fully visible tweet
-      for (let i = 0; i < tweets.length; i++) {
-        const tweet = tweets[i];
-        const rect = tweet.getBoundingClientRect();
+  const container = tweetsContainerRef.current;
+  const { scrollTop, scrollHeight, clientHeight } = container;
 
-        // Check if the tweet is fully visible as the first in the container
-        if (rect.top >= 0 && rect.bottom <= container.clientHeight) {
-          const tweetId = tweet.getAttribute("data-tweet-id");
-          if (tweetId !== visibleTweetId) {
-            setVisibleTweetId(tweetId);
+  // Vérifie si on est à la fin de la liste (avec une marge de 100px)
+  if (scrollTop + clientHeight >= scrollHeight - 100 && hasMore && !loading && !isFetching.current) {
+    const lastTweetId = tweets[tweets.length - 1]?._id; // Récupère l'ID du dernier tweet
 
-            // Save the emotion for the visible tweet
-            if (emotionData) {
-              saveEmotion(tweetId, emotionData.dominant_emotion,'67d00c5e00073dd855bac0a5');
-            }
+    // Vérifie si on a atteint un nouveau dernier tweet avant d'incrémenter la page
+    if (lastTweetId && lastTweetId !== lastTweetRef.current) {
+      lastTweetRef.current = lastTweetId; // Met à jour la référence
+      setPage((prevPage) => prevPage + 1);
+    }
+  }
 
-            // Log the tweet ID and emotion data
-            //console.log("Visible Tweet ID:", tweetId);
-            //console.log("Emotion Data:", emotionData);
-          }
-          break;
+  // Suivi du premier tweet visible
+  const tweetsElements = container.querySelectorAll(".tweet-item");
+  for (let i = 0; i < tweetsElements.length; i++) {
+    const tweet = tweetsElements[i];
+    const rect = tweet.getBoundingClientRect();
+
+    if (rect.top >= 0 && rect.bottom <= container.clientHeight) {
+      const tweetId = tweet.getAttribute("data-tweet-id");
+      if (tweetId !== visibleTweetId) {
+        setVisibleTweetId(tweetId);
+        if (emotionData) {
+          saveEmotion(tweetId, emotionData.dominant_emotion);
         }
       }
+      break;
     }
-  }, [visibleTweetId, emotionData, hasMore, loading, page]);
+  }
+}, [tweets, visibleTweetId, emotionData, hasMore, loading]);
 
-  // Add scroll event listener to the tweets container
+  // Add scroll event listener with debouncing
   useEffect(() => {
     const container = tweetsContainerRef.current;
-    if (container) {
-      container.addEventListener("scroll", handleScroll);
-    }
+    if (!container) return;
 
-    return () => {
-      if (container) {
-        container.removeEventListener("scroll", handleScroll);
+    const debouncedHandleScroll = () => {
+      if (!loading && !isFetching.current) {
+        handleScroll();
       }
     };
-  }, [handleScroll]);
+
+    container.addEventListener("scroll", debouncedHandleScroll);
+    return () => container.removeEventListener("scroll", debouncedHandleScroll);
+  }, [handleScroll, loading]);
 
   return (
     <Container maxWidth="lg" sx={{ marginTop: 4 }}>
@@ -179,7 +190,7 @@ const Home = () => {
       <NewTweet onAddTweet={addNewTweet} />
 
       {/* Affichage des tweets */}
-      {loading ? (
+      {loading && tweets.length === 0 ? (
         <Grid container justifyContent="center" sx={{ marginTop: 3 }}>
           <CircularProgress />
         </Grid>
@@ -196,7 +207,7 @@ const Home = () => {
         >
           <Grid container spacing={2}>
             {tweets.map((tweet) => (
-              <Grid item xs={12} key={uuidv4()} className="tweet-item" data-tweet-id={tweet._id}>
+              <Grid item xs={12} key={tweet._id} className="tweet-item" data-tweet-id={tweet._id}>
                 <Tweet tweet={tweet} />
               </Grid>
             ))}
