@@ -1,8 +1,7 @@
-import React, { useState, useContext } from "react";
-import axios from "axios";
-import { Container, TextField, Button, Card, CardContent, Typography, Alert } from "@mui/material";
-import { UserContext } from "../context/UserContext";
+import React, { useState } from "react";
+import { Container, TextField, Button, Card, CardContent, Typography, Alert, CircularProgress } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -14,8 +13,7 @@ const Register = () => {
     bio: ""
   });
 
-  const [error, setError] = useState(null);
-  const { setUser } = useContext(UserContext);
+  const { register, error, loading } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -24,28 +22,15 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
 
     try {
-      const response = await axios.post("http://localhost:5001/api/auth/register", formData);
-
-      // Récupération du token et de l'utilisateur renvoyé par le backend
-      const { token, user } = response.data;
-
-      // Stockage du token dans le localStorage
-      localStorage.setItem("token", token);
-
-      // Mise à jour du contexte utilisateur
-      setUser(user);
-
+      await register(formData);
+      
       // Redirection vers la page d'accueil
       navigate("/");
     } catch (err) {
-      if (err.response && err.response.data && err.response.data.message) {
-        setError(err.response.data.message);
-      } else {
-        setError("Une erreur est survenue. Veuillez réessayer.");
-      }
+      // L'erreur est déjà gérée par le hook useAuth
+      console.error("Erreur d'inscription:", err);
     }
   };
 
@@ -65,6 +50,7 @@ const Register = () => {
               margin="normal"
               variant="outlined"
               onChange={handleChange}
+              disabled={loading}
             />
             <TextField
               fullWidth
@@ -73,6 +59,7 @@ const Register = () => {
               margin="normal"
               variant="outlined"
               onChange={handleChange}
+              disabled={loading}
             />
             <TextField
               fullWidth
@@ -81,6 +68,7 @@ const Register = () => {
               margin="normal"
               variant="outlined"
               onChange={handleChange}
+              disabled={loading}
             />
             <TextField
               fullWidth
@@ -89,6 +77,7 @@ const Register = () => {
               margin="normal"
               variant="outlined"
               onChange={handleChange}
+              disabled={loading}
             />
             <TextField
               fullWidth
@@ -98,6 +87,7 @@ const Register = () => {
               margin="normal"
               variant="outlined"
               onChange={handleChange}
+              disabled={loading}
             />
             <TextField
               fullWidth
@@ -108,6 +98,7 @@ const Register = () => {
               multiline
               rows={3}
               onChange={handleChange}
+              disabled={loading}
             />
             <Button 
               type="submit" 
@@ -115,8 +106,9 @@ const Register = () => {
               variant="contained" 
               color="primary" 
               sx={{ marginTop: 2 }}
+              disabled={loading}
             >
-              S'inscrire
+              {loading ? <CircularProgress size={24} color="inherit" /> : "S'inscrire"}
             </Button>
           </form>
         </CardContent>

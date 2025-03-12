@@ -18,7 +18,7 @@ export const NotificationProvider = ({ children }) => {
   // Initialisation du socket
   useEffect(() => {
     if (user) {
-      const newSocket = io(process.env.REACT_APP_API_URL || 'http://localhost:3000', {
+      const newSocket = io(import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001', {
         auth: {
           token: localStorage.getItem('token')
         }

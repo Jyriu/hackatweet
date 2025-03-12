@@ -1,37 +1,22 @@
-import React, { useState, useContext } from "react";
-import axios from "axios";
-import { Container, TextField, Button, Card, CardContent, Typography, Alert } from "@mui/material";
-import { UserContext } from "../context/UserContext";
+import React, { useState } from "react";
+import { Container, TextField, Button, Card, CardContent, Typography, Alert, CircularProgress } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(null);
-  const { setUser } = useContext(UserContext);
+  const { login, error, loading } = useAuth();
   const navigate = useNavigate();
 
   const handleLogin = async () => {
     try {
-      // Envoi de la requête POST au backend
-      const response = await axios.post("http://localhost:5001/api/auth/login", {
-        email,
-        password,
-      });
-
-      // Récupération de la réponse
-      const { token, user } = response.data;
-
-      // Sauvegarde du token JWT dans le localStorage
-      localStorage.setItem("token", token);
-
-      // Mise à jour du contexte utilisateur
-      setUser(user);
-
+      await login({ email, password });
       // Redirection vers la page d'accueil
       navigate("/");
     } catch (err) {
-      setError(err.response?.data?.message || "Erreur lors de la connexion");
+      // L'erreur est déjà gérée par le hook useAuth
+      console.error("Erreur de connexion:", err);
     }
   };
 
@@ -50,6 +35,7 @@ const Login = () => {
             variant="outlined"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
           />
           <TextField
             fullWidth
@@ -59,6 +45,7 @@ const Login = () => {
             variant="outlined"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
           />
           <Button 
             fullWidth 
@@ -66,8 +53,9 @@ const Login = () => {
             color="primary" 
             sx={{ marginTop: 2 }} 
             onClick={handleLogin}
+            disabled={loading}
           >
-            Se connecter
+            {loading ? <CircularProgress size={24} color="inherit" /> : "Se connecter"}
           </Button>
         </CardContent>
       </Card>
