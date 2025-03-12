@@ -28,9 +28,29 @@ const Tweet = ({ tweet }) => {
   const [comments, setComments] = useState(tweet.comments || []);
   const [likesCount, setLikesCount] = useState(tweet.likes || 0);
   const [isLiking, setIsLiking] = useState(false);
-  const [retweetComment, setRetweetComment] = useState("");  // Commentaire du retweet
-  const [showRetweetField, setShowRetweetField] = useState(false);  // Pour afficher ou non le champ de retweet
+  const [retweetComment, setRetweetComment] = useState("");
+  const [showRetweetField, setShowRetweetField] = useState(false);
   const [error, setError] = useState(null);
+  const [originalTweetText, setOriginalTweetText] = useState(null); // Pour stocker le texte du tweet original
+
+  useEffect(() => {
+    // Si tweet.originalTweet existe, on effectue la requête pour récupérer le tweet original
+    if (tweet.originalTweet) {
+      const fetchOriginalTweet = async () => {
+        try {
+          const response = await axios.post(
+            `${url}/api/tweet/getweet/${tweet.originalTweet}`
+          );
+          setOriginalTweetText(response.data.text);
+        } catch (error) {
+          console.error("Erreur lors de la récupération du tweet original:", error);
+          setError("Erreur lors de la récupération du tweet original");
+        }
+      };
+
+      fetchOriginalTweet();
+    }
+  }, [tweet.originalTweet]);
 
   const handleLike = async () => {
     if (isLiking) return;
@@ -114,18 +134,6 @@ const Tweet = ({ tweet }) => {
           {tweet.text}
         </Typography>
 
-        {/* Afficher le tweet original si présent */}
-        {tweet.originalTweet && (
-          <Box sx={{ marginTop: 2, paddingLeft: 2, borderLeft: "2px solid #ccc" }}>
-            <Typography variant="body2" color="textSecondary">
-              Tweet original :
-            </Typography>
-            <Typography variant="body2" color="text.primary" sx={{ marginTop: 1 }}>
-              {tweet.originalTweet.text}
-            </Typography>
-          </Box>
-        )}
-
         {tweet.mediaUrl && (
           <Box sx={{ marginTop: 2 }}>
             <img
@@ -154,6 +162,18 @@ const Tweet = ({ tweet }) => {
             <RepeatIcon />
           </IconButton>
         </ButtonGroup>
+
+        {/* Afficher le tweet original si présent */}
+        {originalTweetText && (
+          <Box sx={{ marginTop: 2, paddingLeft: 2, borderLeft: "2px solid #ccc" }}>
+            <Typography variant="body2" color="textSecondary">
+              Tweet original :
+            </Typography>
+            <Typography variant="body2" color="text.primary" sx={{ marginTop: 1 }}>
+              {originalTweetText}
+            </Typography>
+          </Box>
+        )}
 
         {/* Champ de commentaire pour le retweet */}
         {showRetweetField && (
