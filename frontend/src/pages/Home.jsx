@@ -1,25 +1,32 @@
 import React, { useState } from "react";
 import { Container, Typography, Box } from "@mui/material";
 import { useTweets } from "../hooks/useTweets";
+import NewTweet from "../components/NewTweet";
 
 const Home = () => {
-  console.log("Rendu du composant Home - Test avec useTweets");
+  console.log("Rendu du composant Home - Test avec NewTweet simplifié");
   
   // Utiliser le hook useTweets pour récupérer les tweets uniquement
-  const { tweets, loading, error } = useTweets();
+  const { tweets, loading, error, createTweet } = useTweets();
   console.log("Tweets chargés:", tweets);
-  console.log("État de loading:", loading);
-  console.log("Erreur éventuelle:", error);
+  
+  // Function to add a new tweet
+  const addNewTweet = async (newTweetData) => {
+    try {
+      await createTweet(newTweetData);
+    } catch (error) {
+      console.error("Error creating tweet:", error);
+    }
+  };
   
   return (
     <Container>
       <Box mt={4}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Accueil - Version de diagnostic avec useTweets
+          Accueil - Version avec NewTweet simplifié
         </Typography>
-        <Typography variant="body1">
-          Si vous voyez ce message, le composant Home fonctionne avec useTweets.
-        </Typography>
+        
+        <NewTweet onAddTweet={addNewTweet} />
         
         <Typography variant="body1" mt={2}>
           Nombre de tweets chargés: {tweets ? tweets.length : 0}
