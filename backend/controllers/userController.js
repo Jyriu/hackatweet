@@ -1,6 +1,7 @@
-const mongoose = require('mongoose');
-const User = mongoose.model('User');
-const Tweet = mongoose.model('Tweet');
+const mongoose = require("mongoose");
+const User = mongoose.model("User");
+const Tweet = mongoose.model("Tweet");
+const Notification = mongoose.model("Notification");
 
 // Récupérer le profil d'un utilisateur par son username
 exports.getUserByUsername = async (req, res) => {
@@ -11,7 +12,7 @@ exports.getUserByUsername = async (req, res) => {
 
     if (!user) {
       console.warn(`⚠️ [User] Utilisateur non trouvé avec le username: ${username}`);
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
 
     console.log(`ℹ️ [User] Profil récupéré: ${username}`);
@@ -25,28 +26,39 @@ exports.getUserByUsername = async (req, res) => {
 // Mettre à jour le profil utilisateur
 exports.updateProfile = async (req, res) => {
   try {
-    const { bio, photo, banner, nom, prenom } = req.body;
+    // Extraction des champs textuels depuis req.body
+    const { bio, nom, prenom } = req.body;
     const userId = req.user.id;
+
 
     // Vérifier que l'utilisateur existe
     const user = await User.findById(userId);
     if (!user) {
       console.warn(`⚠️ [User] Tentative de mise à jour d'un utilisateur inexistant: ${userId}`);
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
+
 
     // Mettre à jour uniquement les champs fournis
     if (bio !== undefined) user.bio = bio;
-    if (photo !== undefined) user.photo = photo;
-    if (banner !== undefined) user.banner = banner;
     if (nom !== undefined) user.nom = nom;
     if (prenom !== undefined) user.prenom = prenom;
+
+    // Traitement des fichiers uploadés via multer
+    if (req.files && req.files.photo) {
+      user.photo = "/uploads/" + req.files.photo[0].filename;
+    }
+    if (req.files && req.files.banner) {
+      user.banner = "/uploads/" + req.files.banner[0].filename;
+    }
+
 
     await user.save();
     console.log(`✅ [User] Profil mis à jour pour l'utilisateur ${userId}`);
 
+
     res.json({
-      message: 'Profil mis à jour avec succès',
+      message: "Profil mis à jour avec succès",
       user: {
         id: user._id,
         email: user.email,
@@ -55,8 +67,8 @@ exports.updateProfile = async (req, res) => {
         username: user.username,
         photo: user.photo,
         banner: user.banner,
-        bio: user.bio
-      }
+        bio: user.bio,
+      },
     });
   } catch (error) {
     console.error(`📛 [User] Erreur lors de la mise à jour du profil: ${error.message}`, error);
@@ -122,12 +134,14 @@ exports.unfollowUser = async (req, res) => {
     const { userToUnfollowId } = req.params;
     const userId = req.user.id;
 
+
     // Vérifier que l'utilisateur à ne plus suivre existe
     const userToUnfollow = await User.findById(userToUnfollowId);
     if (!userToUnfollow) {
       console.warn(`⚠️ [User] Tentative d'unfollow d'un utilisateur inexistant: ${userToUnfollowId}`);
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
+
 
     // Vérifier si l'utilisateur suit déjà la personne
     const user = await User.findById(userId);
@@ -136,14 +150,16 @@ exports.unfollowUser = async (req, res) => {
       return res.status(400).json({ message: 'Vous ne suivez pas cet utilisateur' });
     }
 
+
     // Retirer l'utilisateur à ne plus suivre de la liste des following de l'utilisateur actuel
     await User.findByIdAndUpdate(userId, {
-      $pull: { following: userToUnfollowId }
+      $pull: { following: userToUnfollowId },
     });
+
 
     // Retirer l'utilisateur actuel de la liste des followers de l'utilisateur à ne plus suivre
     await User.findByIdAndUpdate(userToUnfollowId, {
-      $pull: { followers: userId }
+      $pull: { followers: userId },
     });
 
     console.log(`✅ [User] Utilisateur ${userId} a cessé de suivre ${userToUnfollowId}`);
@@ -230,8 +246,9 @@ exports.getFollowers = async (req, res) => {
     const user = await User.findOne({ username }).select('followers');
 
     if (!user) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
+
 
     // Récupérer les détails de chaque abonné
     const followers = await User.find({
@@ -240,8 +257,8 @@ exports.getFollowers = async (req, res) => {
 
     res.json(followers);
   } catch (error) {
-    console.error('Erreur lors de la récupération des abonnés:', error);
-    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    console.error("Erreur lors de la récupération des abonnés:", error);
+    res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
 
@@ -253,8 +270,9 @@ exports.getFollowing = async (req, res) => {
     const user = await User.findOne({ username }).select('following');
 
     if (!user) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
+
 
     // Récupérer les détails de chaque abonnement
     const following = await User.find({
@@ -263,8 +281,8 @@ exports.getFollowing = async (req, res) => {
 
     res.json(following);
   } catch (error) {
-    console.error('Erreur lors de la récupération des abonnements:', error);
-    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    console.error("Erreur lors de la récupération des abonnements:", error);
+    res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
 

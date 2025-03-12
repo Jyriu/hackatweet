@@ -6,6 +6,7 @@ const { faker } = require('@faker-js/faker');
 const http = require('http');
 const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
+const path = require('path');
 
 // Importer tous les modèles (nécessaire pour que MongoDB crée les collections)
 require('./models/User');
@@ -24,6 +25,9 @@ const PORT = process.env.PORT || 5001;
 // Middleware de base
 app.use(cors());
 app.use(express.json());
+
+// Exposer le dossier uploads pour servir les images
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Route de test simple
 // Route pour créer un utilisateur test (temporaire)
@@ -281,7 +285,8 @@ const sendNotification = async (notification) => {
 global.sendNotification = sendNotification;
 
 // Connexion à MongoDB puis démarrage du serveur
-mongoose.connect(process.env.MONGODB_URI)
+mongoose
+  .connect(process.env.MONGO_URI)
   .then(() => {
     console.log('Connecté à MongoDB');
     //createTweets()
@@ -290,28 +295,28 @@ mongoose.connect(process.env.MONGODB_URI)
       console.log(`Serveur démarré sur le port ${PORT}`);
     });
   })
-  .catch(err => {
-    console.error('Erreur de connexion à MongoDB:', err);
+  .catch((err) => {
+    console.error("Erreur de connexion à MongoDB:", err);
     process.exit(1);
   });
 
 // Gestion des événements de connexion
-mongoose.connection.on('connected', () => {
-  console.log('Mongoose connecté à la base de données');
+mongoose.connection.on("connected", () => {
+  console.log("Mongoose connecté à la base de données");
 });
 
-mongoose.connection.on('error', (err) => {
+mongoose.connection.on("error", (err) => {
   console.error(`Erreur de connexion Mongoose: ${err}`);
 });
 
-mongoose.connection.on('disconnected', () => {
-  console.log('Mongoose déconnecté de la base de données');
+mongoose.connection.on("disconnected", () => {
+  console.log("Mongoose déconnecté de la base de données");
 });
 
 // Gestion propre de la déconnexion
-process.on('SIGINT', async () => {
+process.on("SIGINT", async () => {
   await mongoose.connection.close();
-  console.log('Connexion MongoDB fermée');
+  console.log("Connexion MongoDB fermée");
   process.exit(0);
 });
 
