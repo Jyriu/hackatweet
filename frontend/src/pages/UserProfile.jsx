@@ -1,85 +1,103 @@
+// UserProfile.jsx
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { Container, Typography, Avatar, Grid, Button, CircularProgress, Box } from "@mui/material";
 import axios from "axios";
 import Tweet from "../components/Tweet";
 
 const UserProfile = () => {
   const { username } = useParams(); // Récupère le pseudo depuis l'URL
-  const [user, setUser] = useState(null);
+  const [visitedUser, setVisitedUser] = useState(null);
   const [tweets, setTweets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
-  const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+  const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
+
   useEffect(() => {
-    
-    // Récupérer les informations de l'utilisateur
-    const fetchUser = async () => {
+    const token = localStorage.getItem("token");
+
+    const fetchUserAndTweets = async () => {
       try {
-        const response = await axios.get(`${API_URL}/api/users/${username}`);
-        setUser(response.data);
-        setIsFollowing(response.data.isFollowing); // Si on a un système de followers
+        // Récupérer les informations complètes de l'utilisateur visité
+        const userResponse = await axios.get(
+          `${API_URL}/api/users/by-username/${username}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setVisitedUser(userResponse.data);
+        setIsFollowing(userResponse.data.isFollowing);
+
+        // Appel à la nouvelle route pour récupérer les tweets de l'utilisateur visité
+        const tweetsResponse = await axios.get(
+          `${API_URL}/api/tweet/user/${userResponse.data._id}/tweets`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setTweets(tweetsResponse.data);
       } catch (error) {
-        console.error("Erreur lors de la récupération du profil utilisateur :", error);
+        console.error("Erreur lors du chargement des données :", error);
       }
+      setLoading(false);
     };
 
-    // Récupérer les tweets de cet utilisateur
-    const fetchTweets = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/api/tweet/user/${username}`);
-        setTweets(response.data);
-      } catch (error) {
-        console.error("Erreur lors de la récupération des tweets :", error);
-      }
-    };
-
-    fetchUser();
-    fetchTweets();
-    setLoading(false);
+    fetchUserAndTweets();
   }, [username]);
 
-  // Fonction pour suivre/désuivre l'utilisateur
   const handleFollow = async () => {
     try {
-      await axios.post(`${API_URL}/api/users/follow/${username}`);
+      const token = localStorage.getItem("token");
+      await axios.post(
+        `${API_URL}/api/users/follow/${visitedUser._id}`,
+        null,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       setIsFollowing(!isFollowing);
     } catch (error) {
       console.error("Erreur lors du suivi :", error);
     }
   };
 
-  console.log("Pseudo récupéré :", username);
-
   if (loading) {
-    return <CircularProgress />;
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (
-    <Container maxWidth="md" sx={{ marginTop: 4 }}>
-      {user ? (
+    <Container maxWidth="md" sx={{ mt: 4 }}>
+      {visitedUser ? (
         <>
           <Grid container spacing={2} alignItems="center">
             <Grid item>
-              <Avatar src={user.profilePicture} alt={user.username} sx={{ width: 80, height: 80 }} />
+              <Link to={`/user/${visitedUser.username}`} style={{ textDecoration: "none", color: "inherit" }}>
+                <Avatar
+                  src={
+                    visitedUser.photo
+                      ? `${API_URL}${visitedUser.photo}`
+                      : "https://via.placeholder.com/150?text=Avatar"
+                  }
+                  alt={visitedUser.username}
+                  sx={{ width: 80, height: 80 }}
+                />
+              </Link>
             </Grid>
             <Grid item>
-              <Typography variant="h5">{user.username}</Typography>
-              <Typography variant="body1" color="textSecondary">{user.bio}</Typography>
+              <Link to={`/user/${visitedUser.username}`} style={{ textDecoration: "none", color: "inherit" }}>
+                <Typography variant="h5">{visitedUser.username}</Typography>
+              </Link>
+              <Typography variant="body1" color="textSecondary">
+                {visitedUser.bio}
+              </Typography>
             </Grid>
             <Grid item>
-              <Button 
-                variant="contained" 
-                color={isFollowing ? "secondary" : "primary"} 
-                onClick={handleFollow}
-              >
+              <Button variant="contained" color={isFollowing ? "secondary" : "primary"} onClick={handleFollow}>
                 {isFollowing ? "Se désabonner" : "Suivre"}
               </Button>
             </Grid>
           </Grid>
 
-          {/* Liste des tweets */}
-          <Box sx={{ marginTop: 3 }}>
+          {/* Liste des tweets de l'utilisateur visité */}
+          <Box sx={{ mt: 3 }}>
             {tweets.length > 0 ? (
               tweets.map((tweet) => <Tweet key={tweet._id} tweet={tweet} />)
             ) : (

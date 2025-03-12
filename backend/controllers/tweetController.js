@@ -221,6 +221,7 @@ exports.getTweets = async (req, res) => {
     }
   };
   
+  
 
 // Récupérer tous les tweets de l'utilisateur connecté
 exports.getUserTweets = async (req, res) => {
@@ -514,3 +515,16 @@ exports.bookmarkTweet = async (req, res) => {
 };
 
 
+exports.getTweetsByUser = async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      // On récupère les tweets dont l'auteur correspond à userId, triés par date décroissante.
+      const tweets = await Tweet.find({ author: userId })
+        .populate('author', 'username photo')
+        .sort({ date: -1 });
+      res.json(tweets);
+    } catch (error) {
+      console.error("Error fetching tweets by user:", error);
+      res.status(500).json({ message: "Error fetching tweets by user", error: error.message });
+    }
+};

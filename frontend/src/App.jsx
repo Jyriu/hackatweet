@@ -40,6 +40,9 @@ import {
 } from "./redux/actions/socketActions";
 import { loadUser, logoutUser } from "./redux/actions/userActions";
 
+// URL de base du backend
+const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
+
 // Composant pour les routes protégées
 const ProtectedRoute = ({ element }) => {
   const user = useSelector((state) => state.user.currentUser);
@@ -58,7 +61,7 @@ const AuthRoute = ({ element }) => {
   return element;
 };
 
-// Boutons de navigation (supprimé le bouton "Home")
+// Boutons de navigation (le bouton "Home" a été retiré)
 function NavigationButtons() {
   const user = useSelector((state) => state.user.currentUser);
   const unreadCount = useSelector((state) => state.notifications.unreadCount);
@@ -86,7 +89,11 @@ function NavigationButtons() {
           sx={{ fontSize: "1.5rem" }}
         >
           <Avatar
-            src={user.profilePicture}
+            src={
+              user.photo
+                ? `${API_URL}${user.photo}`
+                : "https://via.placeholder.com/150?text=Avatar"
+            }
             alt={user.username}
             sx={{ width: 40, height: 40 }}
           />
@@ -176,14 +183,29 @@ function AppContent() {
       <Box sx={{ paddingTop: user ? "64px" : 0 }}>
         <Routes>
           <Route path="/" element={<ProtectedRoute element={<Home />} />} />
-          <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
+          <Route
+            path="/profile"
+            element={<ProtectedRoute element={<Profile />} />}
+          />
           <Route path="/auth" element={<AuthRoute element={<Auth />} />} />
-          <Route path="/notifications" element={<ProtectedRoute element={<Notifications />} />} />
-          <Route path="/settings" element={<ProtectedRoute element={<Settings />} />} />
-          <Route path="/user/:username" element={<ProtectedRoute element={<UserProfile />} />} />
+          <Route
+            path="/notifications"
+            element={<ProtectedRoute element={<Notifications />} />}
+          />
+          <Route
+            path="/settings"
+            element={<ProtectedRoute element={<Settings />} />}
+          />
+          <Route
+            path="/user/:username"
+            element={<ProtectedRoute element={<UserProfile />} />}
+          />
           <Route path="/login" element={<Navigate to="/auth" replace />} />
           <Route path="/register" element={<Navigate to="/auth" replace />} />
-          <Route path="*" element={<Navigate to={user ? "/" : "/auth"} replace />} />
+          <Route
+            path="*"
+            element={<Navigate to={user ? "/" : "/auth"} replace />}
+          />
         </Routes>
       </Box>
     </>
@@ -203,7 +225,6 @@ const App = () => {
     if (user && !isConnected) {
       dispatch(connectToSocket());
     }
-
     return () => {
       if (isConnected) {
         dispatch(disconnectFromSocket());
