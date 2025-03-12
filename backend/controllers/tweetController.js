@@ -65,7 +65,7 @@ exports.createTweet = async (req, res) => {
 
 
 // Récupérer tous les tweets triés par date
-exports.getTweets = async (req, res) => {
+/* exports.getTweets = async (req, res) => {
     try {
         const tweets = await Tweet.find().populate('author', 'username').sort({ date: -1 }).limit(5);
         res.json(tweets);
@@ -73,7 +73,7 @@ exports.getTweets = async (req, res) => {
         console.error('Erreur lors de la récupération des tweets:', error);
         res.status(500).json({ message: 'Erreur lors de la récupération des tweets', error: error.message });
     }
-};
+}; */
 
 exports.getTweets = async (req, res) => {
     try {
@@ -98,7 +98,7 @@ exports.getTweets = async (req, res) => {
             _id: { $nin: seenTweetIds }
           })
           .populate('author', 'username')
-          .sort({ createdAt: -1 });
+          .sort({ date: -1 });
   
         // 4. Paginate and execute the query
         const tweets = await query
