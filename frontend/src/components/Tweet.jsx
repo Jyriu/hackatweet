@@ -1,8 +1,14 @@
-// Tweet.js
 import React, { useState } from "react";
-import { 
-  Card, CardContent, Typography, Button, IconButton, TextField, 
-  Avatar, Box
+import {
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  IconButton,
+  TextField,
+  Badge,
+  Avatar,
+  Box,
 } from "@mui/material";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import RepeatIcon from "@mui/icons-material/Repeat";
@@ -16,6 +22,8 @@ const Tweet = ({ tweet, onRetweet }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [openRetweetDialog, setOpenRetweetDialog] = useState(false);
+
+  const retweetCount = tweet.retweets ? tweet.retweets.length : 0;
 
   const handleLike = () => {
     setLiked(!liked);
@@ -43,35 +51,144 @@ const Tweet = ({ tweet, onRetweet }) => {
     }
   };
 
+  // Render hashtags
+  const renderHashtags = (hashtags) => {
+    return hashtags.map((hashtag, index) => (
+      <Typography
+        key={index}
+        variant="body2"
+        color="primary"
+        sx={{ display: "inline", marginRight: "8px" }}
+      >
+        #{hashtag}
+      </Typography>
+    ));
+  };
+
+  // Render retweeted content if the tweet is a retweet
+  const renderOriginalTweet = (originalTweet) => {
+    return (
+      <Box
+        sx={{
+          border: "1px solid #ddd",
+          borderRadius: "8px",
+          padding: "10px",
+          marginTop: "16px",
+          backgroundColor: "#f9f9f9",
+        }}
+      >
+        <Typography variant="subtitle2" color="textSecondary">
+          Retweeted from @{originalTweet.author.username}
+        </Typography>
+        <Typography variant="body1" sx={{ marginTop: "8px" }}>
+          {originalTweet.text}
+        </Typography>
+        {originalTweet.hashtags && (
+          <Box sx={{ marginTop: "8px" }}>{renderHashtags(originalTweet.hashtags)}</Box>
+        )}
+        {originalTweet.link && (
+          <Typography
+            variant="body2"
+            color="primary"
+            sx={{ marginTop: "8px", wordWrap: "break-word" }}
+          >
+            <a href={originalTweet.link} target="_blank" rel="noopener noreferrer">
+              {originalTweet.link}
+            </a>
+          </Typography>
+        )}
+        {originalTweet.mediaUrl && (
+          <img
+            src={originalTweet.mediaUrl}
+            alt="Original Tweet Media"
+            style={{ width: "100%", borderRadius: "8px", marginTop: "10px" }}
+          />
+        )}
+      </Box>
+    );
+  };
+
   return (
     <Card sx={{ marginBottom: 2, padding: 2 }}>
       <CardContent>
+        {/* User Info */}
         <Box display="flex" alignItems="center" mb={2}>
           <Avatar src={tweet.author.profilePicture} alt={tweet.author.username} />
-          <Typography variant="subtitle1" sx={{ ml: 1 }}>
-            {tweet.author.username}
-          </Typography>
+          <Box ml={2}>
+            <Typography variant="subtitle1">{tweet.author.name}</Typography>
+            <Typography variant="body2" color="textSecondary">
+              @{tweet.author.username}
+            </Typography>
+          </Box>
         </Box>
+
+        {/* Tweet Content */}
         <Typography variant="body1">{tweet.text}</Typography>
-        {tweet.mediaUrl && (
-          <img src={tweet.mediaUrl} alt="Tweet media" style={{ width: "100%", borderRadius: "10px", marginTop: "10px" }} />
+
+        {/* Hashtags */}
+        {tweet.hashtags && (
+          <Box sx={{ marginTop: "8px" }}>{renderHashtags(tweet.hashtags)}</Box>
         )}
-        <Box sx={{ mt: 2, display: "flex", justifyContent: "space-between" }}>
+
+        {/* Link */}
+        {tweet.link && (
+          <Typography
+            variant="body2"
+            color="primary"
+            sx={{ marginTop: "8px", wordWrap: "break-word" }}
+          >
+            <a href={tweet.link} target="_blank" rel="noopener noreferrer">
+              {tweet.link}
+            </a>
+          </Typography>
+        )}
+
+        {/* Media */}
+        {tweet.mediaUrl && (
+          <img
+          src={`http://localhost:5001${tweet.mediaUrl}`} 
+            alt="Tweet Media"
+            style={{ width: "100%", borderRadius: "8px", marginTop: "10px" }}
+          />
+        )}
+
+        {/* Original Tweet (if retweeted) */}
+        {tweet.originalTweet && renderOriginalTweet(tweet.originalTweet)}
+
+        {/* Actions */}
+        <Box sx={{ mt: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {/* Like Button */}
           <IconButton onClick={handleLike} color={liked ? "error" : "default"}>
             <FavoriteIcon />
           </IconButton>
-          <IconButton onClick={handleRetweet} color={retweeted ? "success" : "default"}>
-            <RepeatIcon />
-          </IconButton>
+
+          {/* Retweet Button with Count */}
+          <Badge badgeContent={retweetCount} color="primary">
+            <IconButton onClick={handleRetweet} color={retweeted ? "success" : "default"}>
+              <RepeatIcon />
+            </IconButton>
+          </Badge>
+
+          {/* Comment Button */}
           <IconButton onClick={() => setShowComments(!showComments)} color="primary">
             <ChatBubbleOutlineIcon />
           </IconButton>
         </Box>
 
+        {/* Comments Section */}
         {showComments && (
           <Box mt={2}>
             {comments.map((comment, index) => (
-              <Typography key={index} variant="body2" sx={{ backgroundColor: "#f5f5f5", padding: 1, borderRadius: "5px", marginBottom: "5px" }}>
+              <Typography
+                key={index}
+                variant="body2"
+                sx={{
+                  backgroundColor: "#f5f5f5",
+                  padding: "8px",
+                  borderRadius: "5px",
+                  marginBottom: "5px",
+                }}
+              >
                 {comment}
               </Typography>
             ))}
@@ -90,7 +207,8 @@ const Tweet = ({ tweet, onRetweet }) => {
           </Box>
         )}
 
-        <RetweetDialog 
+        {/* Retweet Dialog */}
+        <RetweetDialog
           open={openRetweetDialog}
           onClose={handleCloseRetweetDialog}
           tweet={tweet}

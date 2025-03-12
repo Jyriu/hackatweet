@@ -133,94 +133,98 @@ exports.createTweet = async (req, res) => {
 
 exports.getTweets = async (req, res) => {
     try {
-      const { page = 1, limit = 10, userId } = req.query;
-      const parsedLimit = parseInt(limit);
-      const parsedPage = parseInt(page);
-  
-      // 1. Find the user and their negative hashtags
-      const user = await User.findById(userId);
-    
-      const negativeHashtags = user?.hashtagNegatif || [];
-  
-      // 2. Get seen tweet IDs
-      const seenTweetIds = await Emotion.find({ user_id: userId }).distinct('tweet_id');
-      //console.log(seenTweetIds)
-      let allMatchingTweets = [];
-      let currentPage = parsedPage;
-  
-      while (allMatchingTweets.length < parsedLimit) {
-        // 3. Build query for unseen tweets
-        let query = Tweet.find({
-            _id: { $nin: seenTweetIds }
-          })
-          .populate('author', 'username')
-          .sort({ date: -1 });
-  
-        // 4. Paginate and execute the query
-        const tweets = await query
-          .skip((currentPage - 1) * parsedLimit)
-          .limit(parsedLimit)
-          .lean()
-          .exec();
-  
-        if (tweets.length === 0) {
-          // No more tweets to fetch
-          break;
+        const { page = 1, limit = 10, userId } = req.query;
+        const parsedLimit = parseInt(limit);
+        const parsedPage = parseInt(page);
+
+        // 1. Find the user and their negative hashtags
+        const user = await User.findById(userId);
+        const negativeHashtags = user?.hashtagNegatif || [];
+
+        // 2. Get seen tweet IDs
+        const seenTweetIds = await Emotion.find({ user_id: userId }).distinct('tweet_id');
+
+        let allMatchingTweets = [];
+        let currentPage = parsedPage;
+
+        while (allMatchingTweets.length < parsedLimit) {
+            // 3. Build query for unseen tweets
+            let query = Tweet.find({
+                _id: { $nin: seenTweetIds }
+            })
+            .populate('author', 'username name profilePicture')
+            .populate({
+                path: 'originalTweet',
+                populate: {
+                    path: 'author',
+                    select: 'username name profilePicture'
+                }
+            })
+            .populate('retweets')
+            .sort({ date: -1 });
+
+            // 4. Paginate and execute the query
+            const tweets = await query
+                .skip((currentPage - 1) * parsedLimit)
+                .limit(parsedLimit)
+                .lean()
+                .exec();
+
+            if (tweets.length === 0) {
+                // No more tweets to fetch
+                break;
+            }
+
+            // 5. Filter out tweets containing any negative hashtags
+            const filteredTweets = tweets.filter(tweet => {
+                if (!tweet.hashtags) return true; // If no hashtags, keep the tweet
+                return !tweet.hashtags.some(hashtag => negativeHashtags.includes(hashtag));
+            });
+
+            // 6. Add filtered tweets to the result
+            allMatchingTweets = [...allMatchingTweets, ...filteredTweets];
+
+            if (allMatchingTweets.length >= parsedLimit) {
+                // We have enough tweets
+                break;
+            }
+
+            // 7. Increment the page for the next iteration
+            currentPage++;
+
+            // 8. Add processed tweets to seenTweetIds
+            tweets.forEach(tweet => {
+                if (!seenTweetIds.includes(tweet._id)) {
+                    seenTweetIds.push(tweet._id);
+                }
+            });
         }
-  
-        //console.log(negativeHashtags)
-        // 5. Filter out tweets containing any negative hashtags
-        const filteredTweets = tweets.filter(tweet => {
-          if (!tweet.hashtags) return true; // If no hashtags, keep the tweet
-          return !tweet.hashtags.some(hashtag => negativeHashtags.includes(hashtag));
+
+        // 9. Truncate the result to the requested limit
+        const finalTweets = allMatchingTweets.slice(0, parsedLimit);
+
+        // 10. Get the total number of tweets matching criteria
+        const totalMatchingTweets = await Tweet.countDocuments({
+            _id: { $nin: seenTweetIds },
+            hashtags: { $not: { $in: negativeHashtags } }
         });
 
-       
-  
-        // 6. Add filtered tweets to the result
-        allMatchingTweets = [...allMatchingTweets, ...filteredTweets];
-  
-        if (allMatchingTweets.length >= parsedLimit) {
-          // We have enough tweets
-          break;
-        }
-  
-        // 7. Increment the page for the next iteration
-        currentPage++;
-  
-        // 8. Add processed tweets to seenTweetIds
-        tweets.forEach(tweet => {
-          if (!seenTweetIds.includes(tweet._id)) {
-            seenTweetIds.push(tweet._id);
-          }
+        const hasMore = totalMatchingTweets > ((parsedPage) * parsedLimit);
+        res.json({
+            tweets: finalTweets,
+            hasMore,
+            total: totalMatchingTweets
         });
-      }
-  
-      // 9. Truncate the result to the requested limit
-      const finalTweets = allMatchingTweets.slice(0, parsedLimit);
-  
-      // 10. Get the total number of tweets matching criteria
-      const totalMatchingTweets = await Tweet.countDocuments({
-        _id: { $nin: seenTweetIds },
-        hashtags: { $not: { $in: negativeHashtags } }
-      });
-  
-      const hasMore = totalMatchingTweets > ((parsedPage) * parsedLimit);
-      res.json({
-        tweets: finalTweets,
-        hasMore,
-        total: totalMatchingTweets
-      });
-  
+
     } catch (error) {
-      console.error('Error fetching tweets:', error);
-      res.status(500).json({
-        message: 'Error fetching tweets',
-        error: error.message
-      });
+        console.error('Error fetching tweets:', error);
+        res.status(500).json({
+            message: 'Error fetching tweets',
+            error: error.message
+        });
     }
-  };
-  
+};
+
 
 // Récupérer tous les tweets de l'utilisateur connecté
 exports.getUserTweets = async (req, res) => {
