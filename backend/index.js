@@ -87,7 +87,7 @@ const createTweets = async () => {
     const tweets = [];
     const authorId = '67d00c5e00073dd855bac0a5';
 
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 5; i++) {
       const tweet = new Tweet({
         text: faker.lorem.sentence(),
         author: authorId,
