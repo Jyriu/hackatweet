@@ -2,7 +2,6 @@
 const mongoose = require('mongoose');
 const Tweet = mongoose.model('Tweet');
 const User = mongoose.model('User');
-const Replies = mongoose.model('Replies');
 
 // Créer un nouveau tweet
 exports.createTweet = async (req, res) => {
@@ -44,7 +43,6 @@ exports.createTweet = async (req, res) => {
             mediaUrl,
             author: req.user.id,
             userLikes: [],
-            idcommentaires: [],
             idmentions,
 
             hashtags: extractedHashtags,
@@ -180,6 +178,46 @@ exports.getLikedTweetsByFollowings = async (req, res) => {
     }
 };
 
+// Récupérer les tweets commentés par les abonnements de l'utilisateur connecté
+exports.getCommentedTweetsByFollowings = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).populate('following');
+        const followingIds = user.following.map(following => following._id);
+        const tweets = await Tweet.find({ idcommentaires: { $elemMatch: { author: { $in: followingIds } } } }).populate('author', 'username');
+        res.json(tweets);
+    } catch (error) {
+        console.error('Erreur lors de la récupération des tweets commentés par les abonnements:', error);
+        res.status(500).json({ message: 'Erreur lors de la récupération des tweets commentés par les abonnements', error: error.message });
+    }
+};
+
+// Récupérer tous les tweets des abonnements de l'utilisateur connecté (commentés, likés, et tweets)
+exports.getAllTweetsByFollowings = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).populate('following');
+        const followingIds = user.following.map(following => following._id);
+
+        // Récupérer les tweets des abonnements
+        const tweets = await Tweet.find({ author: { $in: followingIds } }).populate('author', 'username');
+
+        // Récupérer les tweets likés par les abonnements
+        const likedTweets = await Tweet.find({ userLikes: { $in: followingIds } }).populate('author', 'username');
+
+        // Récupérer les tweets commentés par les abonnements
+        const commentedTweets = await Tweet.find({ idcommentaires: { $elemMatch: { author: { $in: followingIds } } } }).populate('author', 'username');
+
+        // Fusionner les résultats
+        const allTweets = [...tweets, ...likedTweets, ...commentedTweets];
+
+        // Supprimer les doublons
+        const uniqueTweets = Array.from(new Set(allTweets.map(tweet => tweet._id.toString()))).map(id => allTweets.find(tweet => tweet._id.toString() === id));
+
+        res.json(uniqueTweets);
+    } catch (error) {
+        console.error('Erreur lors de la récupération des tweets des abonnements:', error);
+        res.status(500).json({ message: 'Erreur lors de la récupération des tweets des abonnements', error: error.message });
+    }
+};
 
 // Mettre à jour un tweet
 exports.updateTweet = async (req, res) => {
@@ -295,7 +333,6 @@ exports.retweet = async (req, res) => {
             mediaUrl: mediaUrl,
             author: req.user.id,
             userLikes: [],
-            idcommentaires: [],
             hashtags: hashtags,
             retweets: [],
             originalTweet: originalTweet._id,
@@ -324,179 +361,35 @@ exports.retweet = async (req, res) => {
     }
 };
 
-// Ajouter un commentaire à un tweet
-exports.addComment = async (req, res) => {
+// Ajouter ou retirer un signet à un tweet
+exports.bookmarkTweet = async (req, res) => {
     try {
-        const { text } = req.body;
-        if (!req.user) {
-            return res.status(401).json({ message: 'Utilisateur non authentifié' });
-        }
-        if (!text || text.trim() === '') {
-            return res.status(400).json({ message: 'Le texte du commentaire est requis' });
-        }
         const tweet = await Tweet.findById(req.params.id);
+        const user = await User.findById(req.user.id);
+
         if (!tweet) {
             return res.status(404).json({ message: 'Tweet non trouvé' });
         }
-        const newComment = new Replies({
-            text,
-            author: req.user.id,
-            idTweet: tweet._id,
-            date: new Date()
-        });
-        await newComment.save();
-        tweet.idcommentaires.push(newComment._id);
+
+        if (user.signet.includes(req.params.id)) {
+            // Retirer le signet
+            user.signet = user.signet.filter(tweetId => tweetId.toString() !== req.params.id);
+            tweet.usersave = tweet.usersave.filter(userId => userId.toString() !== req.user.id);
+            await user.save();
+            await tweet.save();
+            return res.json({ message: 'Tweet retiré des signets', tweet });
+        }
+
+        // Ajouter le signet
+        user.signet.push(req.params.id);
+        tweet.usersave.push(req.user.id);
+        await user.save();
         await tweet.save();
 
-        // Ajouter notification à l'auteur du tweet
-        if (tweet.author.toString() !== req.user.id) {
-            await global.sendNotification({
-                userId: tweet.author,
-                type: 'commentaire',
-                triggeredBy: req.user.id,
-                contentId: tweet._id,
-                contentModel: 'Tweet',
-                read: false
-            });
-        }
-
-        res.status(201).json(newComment);
+        res.json({ message: 'Tweet enregistré en signet', tweet });
     } catch (error) {
-        console.error('Erreur lors de l\'ajout du commentaire:', error);
-        res.status(500).json({ message: 'Erreur lors de l\'ajout du commentaire', error: error.message });
-    }
-};
-
-// Répondre à un commentaire
-exports.replyToComment = async (req, res) => {
-    try {
-        const { text } = req.body;
-        if (!req.user) {
-            return res.status(401).json({ message: 'Utilisateur non authentifié' });
-        }
-        if (!text || text.trim() === '') {
-            return res.status(400).json({ message: 'Le texte de la réponse est requis' });
-        }
-        const comment = await Replies.findById(req.params.id);
-        if (!comment) {
-            return res.status(404).json({ message: 'Commentaire non trouvé' });
-        }
-        const newReply = new Replies({
-            text,
-            author: req.user.id,
-            idComment: comment._id,
-            date: new Date()
-        });
-        await newReply.save();
-        comment.replies = comment.replies || [];
-        comment.replies.push(newReply._id);
-        await comment.save();
-
-        // Ajouter notification à l'auteur du commentaire
-        if (comment.author.toString() !== req.user.id) {
-            await global.sendNotification({
-                userId: comment.author,
-                type: 'reply',
-                triggeredBy: req.user.id,
-                contentId: comment._id,
-                contentModel: 'Replies',
-                read: false
-            });
-        }
-
-        res.status(201).json(newReply);
-    } catch (error) {
-        console.error('Erreur lors de la réponse au commentaire:', error);
-        res.status(500).json({ message: 'Erreur lors de la réponse au commentaire', error: error.message });
-    }
-};
-
-
-// Ajouter un like à un commentaire
-exports.likeComment = async (req, res) => {
-    try {
-        const comment = await Replies.findById(req.params.id);
-        const user = await User.findById(req.user.id);
-        if (!comment) {
-            console.warn(`⚠️ [Tweet] Tentative de like d'un commentaire inexistant: ${req.params.id}`);
-            return res.status(404).json({ message: 'Commentaire non trouvé' });
-        }
-        if (comment.userLikes.includes(req.user.id)) {
-            console.warn(`⚠️ [Tweet] Utilisateur ${req.user.id} a déjà liké le commentaire ${req.params.id}`);
-            return res.status(400).json({ message: 'Vous avez déjà liké ce commentaire' });
-        }
-        comment.userLikes.push(req.user.id);
-        user.likes.push(comment.id);
-        await user.save();
-        await comment.save();
-
-        // Ajouter notification à l'auteur du commentaire
-        if (comment.author.toString() !== req.user.id) {
-            await global.sendNotification({
-                userId: comment.author,
-                type: 'like',
-                triggeredBy: req.user.id,
-                contentId: comment._id,
-                contentModel: 'Replies',
-                read: false
-            });
-            console.log(`✅ [Tweet] Like + notification envoyée de ${req.user.id} à ${comment.author} pour le commentaire ${comment._id}`);
-        } else {
-            console.log(`✅ [Tweet] Like sans notification (auteur = liker) pour le commentaire ${comment._id}`);
-        }
-
-        res.json(comment);
-    } catch (error) {
-        console.error(`📛 [Tweet] Erreur lors du like d'un commentaire: ${error.message}`, error);
-        res.status(500).json({ message: 'Erreur lors de l\'ajout du like', error: error.message });
-    }
-};
-
-// Récupérer tous les commentaires d'un tweet
-exports.getComments = async (req, res) => {
-    try {
-        const tweet = await Tweet.findById(req.params.id).populate({
-            path: 'idcommentaires',
-            populate: {
-                path: 'author',
-                select: 'username nom prenom photo'
-            }
-        });
-
-        if (!tweet) {
-            return res.status(404).json({ message: 'Tweet non trouvé' });
-        }
-
-        res.json(tweet.idcommentaires);
-    } catch (error) {
-        console.error('Erreur lors de la récupération des commentaires:', error);
-        res.status(500).json({ message: 'Erreur lors de la récupération des commentaires', error: error.message });
-    }
-};
-
-// Modifier un commentaire
-exports.updateComment = async (req, res) => {
-    try {
-        const { text } = req.body;
-        if (!req.user) {
-            return res.status(401).json({ message: 'Utilisateur non authentifié' });
-        }
-        if (!text || text.trim() === '') {
-            return res.status(400).json({ message: 'Le texte du commentaire est requis' });
-        }
-        const comment = await Replies.findById(req.params.id);
-        if (!comment) {
-            return res.status(404).json({ message: 'Commentaire non trouvé' });
-        }
-        if (comment.author.toString() !== req.user.id) {
-            return res.status(403).json({ message: 'Non autorisé' });
-        }
-        comment.text = text;
-        await comment.save();
-        res.json(comment);
-    } catch (error) {
-        console.error('Erreur lors de la modification du commentaire:', error);
-        res.status(500).json({ message: 'Erreur lors de la modification du commentaire', error: error.message });
+        console.error('Erreur lors de l\'enregistrement du tweet en signet:', error);
+        res.status(500).json({ message: 'Erreur lors de l\'enregistrement du tweet en signet', error: error.message });
     }
 };
 
