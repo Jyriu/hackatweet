@@ -1,14 +1,12 @@
 const mongoose = require("mongoose");
 const User = mongoose.model("User");
 const Tweet = mongoose.model("Tweet");
+const Notification = mongoose.model("Notification");
 
 // Récupérer le profil d'un utilisateur par son username
 exports.getUserByUsername = async (req, res) => {
   try {
     const { username } = req.params;
-
-    const user = await User.findOne({ username }).select("-password");
-
 
     const user = await User.findOne({ username }).select('-password');
 

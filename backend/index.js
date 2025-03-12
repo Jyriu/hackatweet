@@ -6,6 +6,7 @@ const { faker } = require('@faker-js/faker');
 const http = require('http');
 const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
+const path = require('path');
 
 // Importer tous les modèles (nécessaire pour que MongoDB crée les collections)
 require('./models/User');
