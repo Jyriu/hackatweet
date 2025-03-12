@@ -24,12 +24,12 @@ const Profile = () => {
   const [bannerFile, setBannerFile] = useState(null);
   const [error, setError] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
   // Récupération du profil via GET /api/users/profile/:username
   useEffect(() => {
     if (!user) return;
     axios
-      .get(`http://localhost:5001/api/users/profile/${user.username}`)
+      .get(`${API_URL}/api/users/profile/${user.username}`)
       .then((res) => {
         console.log("Profil récupéré :", res.data);
         setProfileData(res.data);
@@ -74,7 +74,7 @@ const Profile = () => {
       const token = localStorage.getItem("token");
       console.log("Envoi de la mise à jour avec token:", token);
       const res = await axios.put(
-        "http://localhost:5001/api/users/profile",
+        `${API_URL}api/users/profile`,
         formData,
         {
           headers: {
@@ -104,7 +104,7 @@ const Profile = () => {
           height="200"
           image={
             profileData.banner
-              ? `http://localhost:5001${profileData.banner}`
+              ? `${API_URL}${profileData.banner}`
               : "https://via.placeholder.com/800x200?text=Bannière"
           }
           alt="Bannière de profil"
@@ -115,7 +115,7 @@ const Profile = () => {
             <Avatar
               src={
                 profileData.photo
-                  ? `http://localhost:5001${profileData.photo}`
+                  ? `${API_URL}${profileData.photo}`
                   : "https://via.placeholder.com/150?text=Avatar"
               }
               sx={{

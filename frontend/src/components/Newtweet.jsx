@@ -13,6 +13,7 @@ import {
 import AddPhotoAlternateIcon from "@mui/icons-material/AddPhotoAlternate";
 import InsertLinkIcon from "@mui/icons-material/InsertLink";
 import axios from "axios";
+const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
 
 const NewTweet = ({ onAddTweet }) => {
   const [tweetContent, setTweetContent] = useState("");
@@ -60,7 +61,7 @@ const NewTweet = ({ onAddTweet }) => {
       formData.append("hashtags", JSON.stringify(hashtags.map(tag => tag.slice(1))));
       formData.append("mentions", JSON.stringify(mentions.map(mention => mention.slice(1))));
 
-      const response = await axios.post("http://localhost:5001/api/tweet/tweets", formData, {
+      const response = await axios.post(`${API_URL}/api/tweet/tweets`, formData, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "multipart/form-data",

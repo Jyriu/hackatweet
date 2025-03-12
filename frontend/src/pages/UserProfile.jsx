@@ -10,13 +10,13 @@ const UserProfile = () => {
   const [tweets, setTweets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
-
+  const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
   useEffect(() => {
     
     // Récupérer les informations de l'utilisateur
     const fetchUser = async () => {
       try {
-        const response = await axios.get(`http://localhost:5001/api/users/${username}`);
+        const response = await axios.get(`${API_URL}/api/users/${username}`);
         setUser(response.data);
         setIsFollowing(response.data.isFollowing); // Si on a un système de followers
       } catch (error) {
@@ -27,7 +27,7 @@ const UserProfile = () => {
     // Récupérer les tweets de cet utilisateur
     const fetchTweets = async () => {
       try {
-        const response = await axios.get(`http://localhost:5001/api/tweet/user/${username}`);
+        const response = await axios.get(`${API_URL}/api/tweet/user/${username}`);
         setTweets(response.data);
       } catch (error) {
         console.error("Erreur lors de la récupération des tweets :", error);
@@ -42,7 +42,7 @@ const UserProfile = () => {
   // Fonction pour suivre/désuivre l'utilisateur
   const handleFollow = async () => {
     try {
-      await axios.post(`http://localhost:5001/api/users/follow/${username}`);
+      await axios.post(`${API_URL}/api/users/follow/${username}`);
       setIsFollowing(!isFollowing);
     } catch (error) {
       console.error("Erreur lors du suivi :", error);
