@@ -3,49 +3,56 @@ import { Container, Typography, Grid, CircularProgress, Box } from "@mui/materia
 import Tweet from "../components/Tweet";
 import NewTweet from "../components/NewTweet";
 import axios from "axios";
-import { v4 as uuidv4 } from 'uuid';
+
 const Home = () => {
   const [tweets, setTweets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [emotionData, setEmotionData] = useState(null); // State for emotion analysis results
-  const [visibleTweetId, setVisibleTweetId] = useState(null); // State for the currently visible tweet ID
-  const [page, setPage] = useState(1); // State for pagination
-  const [hasMore, setHasMore] = useState(true); // State to track if more tweets are available
-  const videoRef = useRef(null); // Ref for the video element
-  const canvasRef = useRef(null); // Ref for the canvas element
-  const tweetsContainerRef = useRef(null); // Ref for the tweets container
+  const [emotionData, setEmotionData] = useState(null);
+  const [visibleTweetId, setVisibleTweetId] = useState(null);
+  const [hasMore, setHasMore] = useState(true); // Pour la pagination
+  const [page, setPage] = useState(1); // Pour la pagination
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const tweetsContainerRef = useRef(null);
 
-  // Load tweets from the backend
-  const fetchTweets = async (page) => {
+  const url = import.meta.env.VITE_BACKEND_URL;
+
+  // Charger les tweets depuis le backend
+  const fetchTweets = async (page = 1) => {
     try {
-      const response = await axios.get(`http://localhost:5001/api/tweet/tweets?page=${page}&limit=10`);
-      if (response.data.length > 0) {
-        setTweets((prevTweets) => [...prevTweets, ...response.data]);
+      const token = localStorage.getItem("token");
+      const response = await axios.get(`${url}/api/tweet/tweets?page=${page}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (page === 1) {
+        setTweets(response.data); // Remplace les tweets pour la première page
       } else {
-        setHasMore(false); // No more tweets to load
+        setTweets((prevTweets) => [...prevTweets, ...response.data]); // Ajoute les tweets pour les pages suivantes
       }
-    } catch (error) {
-      console.error("Error fetching tweets:", error);
+
+      setHasMore(response.data.length > 0); // Vérifie s'il y a plus de tweets à charger
+    } catch (err) {
+      console.error("Erreur lors de la récupération des tweets:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Load initial tweets
+  // Charger les tweets au montage du composant
   useEffect(() => {
     fetchTweets(page);
-  }, []);
+  }, [page]);
 
-  // Add a new tweet and save to localStorage
+  // Ajouter un nouveau tweet à la liste
   const addNewTweet = (newTweet) => {
-    const updatedTweets = [newTweet, ...tweets];
-    setTweets(updatedTweets);
-    localStorage.setItem("tweets", JSON.stringify(updatedTweets));
+    setTweets([newTweet, ...tweets]);
   };
 
-  // Initialize camera and WebSocket connection
+  // Initialiser la caméra et la connexion WebSocket
   useEffect(() => {
-    // Initialize camera
     const initCamera = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
@@ -59,30 +66,24 @@ const Home = () => {
 
     initCamera();
 
-    // Initialize WebSocket connection
     const socket = new WebSocket("ws://127.0.0.1:8000/ws/emotions/");
-
-    socket.onopen = () => {
-      console.log("Connexion WebSocket établie.");
-    };
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      setEmotionData(data); // Update emotion analysis results
+      setEmotionData(data);
     };
 
     socket.onerror = (error) => {
       console.error("Erreur WebSocket :", error);
     };
 
-    // Capture and send frame every second
     const sendFrame = () => {
       if (videoRef.current && canvasRef.current) {
         const context = canvasRef.current.getContext("2d");
         canvasRef.current.width = videoRef.current.videoWidth;
         canvasRef.current.height = videoRef.current.videoHeight;
         context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-        const frameData = canvasRef.current.toDataURL("image/jpeg", 0.8); // qualité 80%
+        const frameData = canvasRef.current.toDataURL("image/jpeg", 0.8);
         if (socket.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify({ frame: frameData }));
         }
@@ -91,71 +92,67 @@ const Home = () => {
 
     const intervalId = setInterval(sendFrame, 1000);
 
-    // Cleanup
     return () => {
       clearInterval(intervalId);
       socket.close();
     };
   }, []);
 
-  // Save emotion for a tweet
+  // Sauvegarder l'émotion pour un tweet
   const saveEmotion = async (tweetId, emotion) => {
     try {
-      const userId = "67d00c5e00073dd855bac0a5"; // Replace with the actual user ID
-      await axios.post("http://localhost:5001/api/emotions/emotions/", {
+      const userId = "67d00c5e00073dd855bac0a5"; // Remplacez par l'ID de l'utilisateur réel
+      await axios.post(`${url}/api/emotions/emotions/`, {
         user_id: userId,
         tweet_id: tweetId,
         emotion: emotion,
       });
-      //console.log("Emotion saved for tweet:", tweetId);
+      console.log("Emotion sauvegardée pour le tweet:", tweetId);
     } catch (error) {
-      console.error("Error saving emotion:", error);
+      console.error("Erreur lors de la sauvegarde de l'émotion:", error);
     }
   };
 
-  // Track the currently visible tweet
+  // Suivre le tweet visible
   const handleScroll = useCallback(() => {
     if (tweetsContainerRef.current) {
       const container = tweetsContainerRef.current;
       const tweets = container.querySelectorAll(".tweet-item");
 
-      // Check if the user has scrolled to the bottom
+      // Vérifier si l'utilisateur a fait défiler jusqu'en bas
       if (
         container.scrollTop + container.clientHeight >= container.scrollHeight - 100 &&
         hasMore &&
         !loading
       ) {
-        setPage((prevPage) => prevPage + 1); // Load the next page of tweets
-        fetchTweets(page + 1);
+        setPage((prevPage) => prevPage + 1); // Charger la page suivante des tweets
       }
 
-      // Track the first fully visible tweet
+      // Suivre le premier tweet entièrement visible
       for (let i = 0; i < tweets.length; i++) {
         const tweet = tweets[i];
         const rect = tweet.getBoundingClientRect();
 
-        // Check if the tweet is fully visible as the first in the container
         if (rect.top >= 0 && rect.bottom <= container.clientHeight) {
           const tweetId = tweet.getAttribute("data-tweet-id");
           if (tweetId !== visibleTweetId) {
             setVisibleTweetId(tweetId);
 
-            // Save the emotion for the visible tweet
+            // Sauvegarder l'émotion pour le tweet visible
             if (emotionData) {
-              saveEmotion(tweetId, emotionData.dominant_emotion,'67d00c5e00073dd855bac0a5');
+              saveEmotion(tweetId, emotionData.dominant_emotion);
             }
 
-            // Log the tweet ID and emotion data
-            //console.log("Visible Tweet ID:", tweetId);
-            //console.log("Emotion Data:", emotionData);
+            console.log("Tweet visible ID:", tweetId);
+            console.log("Données d'émotion:", emotionData);
           }
           break;
         }
       }
     }
-  }, [visibleTweetId, emotionData, hasMore, loading, page]);
+  }, [visibleTweetId, hasMore, loading, emotionData]);
 
-  // Add scroll event listener to the tweets container
+  // Ajouter un écouteur de défilement
   useEffect(() => {
     const container = tweetsContainerRef.current;
     if (container) {
@@ -175,10 +172,8 @@ const Home = () => {
         Fil d'actualité
       </Typography>
 
-      {/* Formulaire pour publier un tweet */}
       <NewTweet onAddTweet={addNewTweet} />
 
-      {/* Affichage des tweets */}
       {loading ? (
         <Grid container justifyContent="center" sx={{ marginTop: 3 }}>
           <CircularProgress />
@@ -196,7 +191,7 @@ const Home = () => {
         >
           <Grid container spacing={2}>
             {tweets.map((tweet) => (
-              <Grid item xs={12} key={uuidv4()} className="tweet-item" data-tweet-id={tweet._id}>
+              <Grid item xs={12} key={tweet._id} className="tweet-item" data-tweet-id={tweet._id}>
                 <Tweet tweet={tweet} />
               </Grid>
             ))}
@@ -204,7 +199,6 @@ const Home = () => {
         </Box>
       )}
 
-      {/* Emotion Analysis Section */}
       <Grid container spacing={4} sx={{ marginTop: 4 }}>
         <Grid item xs={12}>
           <Typography variant="h5" gutterBottom>
@@ -228,13 +222,7 @@ const Home = () => {
         </Grid>
       </Grid>
 
-      {/* Hidden video and canvas for capturing frames */}
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        style={{ display: "none" }} // Hide the video element
-      />
+      <video ref={videoRef} autoPlay playsInline style={{ display: "none" }} />
       <canvas ref={canvasRef} style={{ display: "none" }} />
     </Container>
   );

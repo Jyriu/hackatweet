@@ -25,6 +25,7 @@ const Register = () => {
   const [error, setError] = useState(null);
   const { setUser } = useContext(UserContext);
   const navigate = useNavigate();
+  const url = import.meta.env.VITE_BACKEND_URL;
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -35,7 +36,7 @@ const Register = () => {
     setError(null);
 
     try {
-      const response = await axios.post("http://localhost:5001/api/auth/register", formData);
+      const response = await axios.post(url + "/api/auth/register", formData);
 
       // Récupération du token et de l'utilisateur renvoyé par le backend
       const { token, user } = response.data;

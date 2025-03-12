@@ -81,6 +81,7 @@ import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import AdvancedSearchBar from "./pages/AdvancedSearchBar";
 import { useContext } from "react";
 import { UserContext, UserProvider } from "./context/UserContext"; // Assurez-vous que UserProvider est exporté correctement
 import { Button, AppBar, Toolbar, Typography } from "@mui/material";
@@ -126,6 +127,7 @@ function AppContent() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/search" element={<AdvancedSearchBar />} />
       </Routes>
     </>
   );
