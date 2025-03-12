@@ -15,25 +15,14 @@ const AuthLayout = ({ children, title, subtitle }) => {
         }}
       >
         <Container maxWidth="lg">
-          <Grid container spacing={4} justifyContent="center" alignItems="center">
-            <Grid item xs={12} md={6} lg={5}>
+          <Grid container spacing={8} justifyContent="center" alignItems="center">
+            <Grid item xs={12} md={5} lg={4}>
               <Box 
                 sx={{ 
                   textAlign: 'center',
                   mb: { xs: 3, md: 0 }
                 }}
               >
-                <Typography 
-                  variant="h3" 
-                  component="h1" 
-                  sx={{ 
-                    fontWeight: 700, 
-                    mb: 2,
-                    color: 'secondary.main'
-                  }}
-                >
-                  Hackatweet
-                </Typography>
                 <Typography 
                   variant="h5" 
                   sx={{ 
@@ -53,7 +42,7 @@ const AuthLayout = ({ children, title, subtitle }) => {
                   p: 4, 
                   borderRadius: 4,
                   backgroundColor: 'background.paper',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)'
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)'
                 }}
               >
                 <Box sx={{ mb: 3, textAlign: 'center' }}>

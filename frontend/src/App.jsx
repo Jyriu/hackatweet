@@ -17,8 +17,7 @@ import HomeIcon from '@mui/icons-material/Home';
 // Pages
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
+import Auth from "./pages/Auth";
 import Notifications from "./pages/Notifications";
 
 // Redux actions
@@ -29,9 +28,22 @@ import { loadUser, logoutUser } from './redux/actions/userActions';
 const ProtectedRoute = ({ element }) => {
   const user = useSelector(state => state.user.currentUser);
   
-  // Si l'utilisateur n'est pas connecté, rediriger vers la page d'inscription
+  // Si l'utilisateur n'est pas connecté, rediriger vers la page d'authentification
   if (!user) {
-    return <Navigate to="/register" replace />;
+    return <Navigate to="/auth" replace />;
+  }
+  
+  // Sinon, rendre le composant demandé
+  return element;
+};
+
+// Composant pour les routes d'authentification
+const AuthRoute = ({ element }) => {
+  const user = useSelector(state => state.user.currentUser);
+  
+  // Si l'utilisateur est déjà connecté, rediriger vers la page d'accueil
+  if (user) {
+    return <Navigate to="/" replace />;
   }
   
   // Sinon, rendre le composant demandé
@@ -68,7 +80,7 @@ function LogoutButton() {
 
   const handleLogout = () => {
     dispatch(logoutUser());
-    navigate('/login');
+    navigate('/auth');
   };
 
   return user ? (
@@ -101,11 +113,15 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<ProtectedRoute element={<Home />} />} />
         <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/auth" element={<AuthRoute element={<Auth />} />} />
         <Route path="/notifications" element={<ProtectedRoute element={<Notifications />} />} />
+        
+        {/* Redirection des anciennes routes vers /auth */}
+        <Route path="/login" element={<Navigate to="/auth" replace />} />
+        <Route path="/register" element={<Navigate to="/auth" replace />} />
+        
         {/* Redirection par défaut */}
-        <Route path="*" element={<Navigate to={user ? "/" : "/register"} replace />} />
+        <Route path="*" element={<Navigate to={user ? "/" : "/auth"} replace />} />
       </Routes>
     </>
   );
