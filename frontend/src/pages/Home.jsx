@@ -16,14 +16,17 @@ const Home = () => {
   const tweetsContainerRef = useRef(null);
   const isFetching = useRef(false); // To prevent duplicate fetches
   const userId = "67d00c5e00073dd855bac0a5";
+
+  const url = import.meta.env.VITE_BACKEND_URL;
   // Fetch tweets from the backend
   const fetchTweets = useCallback(async (pageNumber) => {
     if (isFetching.current || !hasMore) return; // Prevent duplicate calls
     isFetching.current = true; // Lock fetching
 
+
     try {
       setLoading(true);
-      const response = await axios.get(`http://localhost:5001/api/tweet/tweets?page=${pageNumber}&limit=10&userId=${userId}`);
+      const response = await axios.get(`${url}/api/tweet/tweets?page=${pageNumber}&limit=10&userId=${userId}`);
 console.log(response)
       if (response.data.tweets.length > 0) {
         setTweets((prevTweets) => {
@@ -116,7 +119,7 @@ console.log(response)
   const saveEmotion = async (tweetId, emotion) => {
     try {
       const userId = "67d00c5e00073dd855bac0a5"; // Replace with the actual user ID
-      await axios.post("http://localhost:5001/api/emotions/emotions/", {
+      await axios.post(`${url}/api/emotions/emotions/`, {
         user_id: userId,
         tweet_id: tweetId,
         emotion: emotion,
