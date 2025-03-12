@@ -1,13 +1,13 @@
-const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
-const User = mongoose.model('User');
+const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
+const User = mongoose.model("User");
 
 // Middleware d'authentification pour protéger les routes
 exports.auth = async (req, res, next) => {
   try {
     // Vérifier la présence du token dans les headers
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
     if (!token) {
       console.warn(`⚠️ [Auth] Tentative d'accès sans token: ${req.originalUrl}`);
       return res.status(401).json({ message: 'Authentification requise' });
@@ -33,11 +33,11 @@ exports.auth = async (req, res, next) => {
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ message: 'Token invalide' });
     }
-    
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ message: 'Token expiré' });
+
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ message: "Token expiré" });
     }
-    
-    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+
+    res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };

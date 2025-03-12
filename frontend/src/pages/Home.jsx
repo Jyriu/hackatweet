@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Container, Typography, Grid, CircularProgress, Box, Button } from "@mui/material";
-import Tweet from "../components/Tweet";
+import React, { useState } from "react";
+import { Container, Typography, Box, Alert } from "@mui/material";
+import { useTweets } from "../hooks/useTweets";
 import NewTweet from "../components/NewTweet";
+import { useAuth } from "../hooks/useAuth";
 import axios from "axios";
+
 import { v4 as uuidv4 } from "uuid";
 import { useNavigate } from "react-router-dom";
 
@@ -127,11 +129,48 @@ const Home = () => {
     };
   }, [cameraEnabled]);
 
+  console.log("Rendu du composant Home - Test avec NewTweet simplifié");
+  
+  // Utiliser le hook auth pour obtenir l'utilisateur actuel
+  const { user } = useAuth();
+  console.log("Utilisateur connecté:", user);
+  
+  // Utiliser le hook useTweets pour récupérer les tweets uniquement
+  const { tweets, loading, error, createTweet } = useTweets();
+  console.log("Tweets chargés:", tweets);
+  
+  // State pour suivre les erreurs de création de tweet
+  const [tweetError, setTweetError] = useState(null);
+  
+  // Function to add a new tweet
+  const addNewTweet = async (newTweetData) => {
+    try {
+      console.log("Tentative de création d'un tweet avec:", newTweetData);
+      
+      if (!user) {
+        setTweetError("Vous devez être connecté pour tweeter");
+        return;
+      }
+      
+      // Les hashtags sont extraits automatiquement côté serveur
+      const simplifiedTweetData = {
+        content: newTweetData.content,
+        // On pourrait ajouter mediaUrl si on avait des médias
+      };
+      
+      console.log("Données simplifiées pour l'API:", simplifiedTweetData);
+      
+      const result = await createTweet(simplifiedTweetData);
+      console.log("Résultat de la création:", result);
+      setTweetError(null);
+    } catch (error) {
+      console.error("Error creating tweet:", error);
+      setTweetError("Impossible de créer le tweet. Vérifiez la console pour plus d'informations.");
+    }
+  };
+  
   return (
     <Container maxWidth="lg" sx={{ marginTop: 4 }}>
-      {/* Barre de navigation */}
-      
-
       <Typography variant="h4" color="primary" gutterBottom>
         Fil d'actualité
       </Typography>
@@ -146,6 +185,7 @@ const Home = () => {
         </Grid>
       ) : (
         <Box
+          ref={tweetsContainerRef}
           sx={{
             height: "60vh",
             overflowY: "auto",
@@ -156,13 +196,46 @@ const Home = () => {
         >
           <Grid container spacing={2}>
             {tweets.map((tweet) => (
-              <Grid item xs={12} key={uuidv4()} className="tweet-item">
+              <Grid item xs={12} key={uuidv4()} className="tweet-item" data-tweet-id={tweet._id}>
                 <Tweet tweet={tweet} />
               </Grid>
             ))}
           </Grid>
         </Box>
       )}
+
+      {/* Emotion Analysis Section */}
+      <Grid container spacing={4} sx={{ marginTop: 4 }}>
+        <Grid item xs={12}>
+          <Typography variant="h5" gutterBottom>
+            Résultats d'analyse des émotions
+          </Typography>
+          <div
+            style={{
+              backgroundColor: "#f2f2f2",
+              padding: "10px",
+              overflowY: "auto",
+              height: "300px",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {emotionData ? (
+              <pre>{JSON.stringify(emotionData, null, 2)}</pre>
+            ) : (
+              <Typography variant="body1">En attente des résultats d'analyse...</Typography>
+            )}
+          </div>
+        </Grid>
+      </Grid>
+
+      {/* Hidden video and canvas for capturing frames */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        style={{ display: "none" }} // Hide the video element
+      />
+      <canvas ref={canvasRef} style={{ display: "none" }} />
     </Container>
   );
 };

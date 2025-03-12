@@ -1,0 +1,495 @@
+const mongoose = require('mongoose');
+const User = mongoose.model('User');
+const Tweet = mongoose.model('Tweet');
+
+// Récupérer le profil d'un utilisateur par son username
+exports.getUserByUsername = async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    const user = await User.findOne({ username }).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    res.json(user);
+  } catch (error) {
+    console.error('Erreur lors de la récupération du profil:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+// Mettre à jour le profil utilisateur
+exports.updateProfile = async (req, res) => {
+  try {
+    const { bio, photo, banner, nom, prenom } = req.body;
+    const userId = req.user.id;
+    
+    // Vérifier que l'utilisateur existe
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Mettre à jour uniquement les champs fournis
+    if (bio !== undefined) user.bio = bio;
+    if (photo !== undefined) user.photo = photo;
+    if (banner !== undefined) user.banner = banner;
+    if (nom !== undefined) user.nom = nom;
+    if (prenom !== undefined) user.prenom = prenom;
+    
+    await user.save();
+    
+    res.json({
+      message: 'Profil mis à jour avec succès',
+      user: {
+        id: user._id,
+        email: user.email,
+        nom: user.nom,
+        prenom: user.prenom,
+        username: user.username,
+        photo: user.photo,
+        banner: user.banner,
+        bio: user.bio
+      }
+    });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du profil:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+// Suivre un utilisateur
+exports.followUser = async (req, res) => {
+  try {
+    const { userToFollowId } = req.params;
+    const userId = req.user.id;
+    
+    // Vérifier que l'utilisateur à suivre existe
+    const userToFollow = await User.findById(userToFollowId);
+    if (!userToFollow) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Vérifier que l'utilisateur ne se suit pas lui-même
+    if (userToFollowId === userId) {
+      return res.status(400).json({ message: 'Vous ne pouvez pas vous suivre vous-même' });
+    }
+    
+    // Vérifier si l'utilisateur suit déjà la personne
+    const user = await User.findById(userId);
+    if (user.following.includes(userToFollowId)) {
+      return res.status(400).json({ message: 'Vous suivez déjà cet utilisateur' });
+    }
+    
+    // Ajouter l'utilisateur à suivre à la liste des following de l'utilisateur actuel
+    await User.findByIdAndUpdate(userId, {
+      $push: { following: userToFollowId }
+    });
+    
+    // Ajouter l'utilisateur actuel à la liste des followers de l'utilisateur à suivre
+    await User.findByIdAndUpdate(userToFollowId, {
+      $push: { followers: userId }
+    });
+    
+    // Créer une notification d'abonnement
+    const Notification = mongoose.model('Notification');
+    const newNotification = new Notification({
+      userId: userToFollowId,
+      type: 'abonnement',
+      followerId: userId
+    });
+    
+    await newNotification.save();
+    
+    res.json({ message: 'Vous suivez maintenant cet utilisateur' });
+  } catch (error) {
+    console.error('Erreur lors du suivi:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+// Ne plus suivre un utilisateur
+exports.unfollowUser = async (req, res) => {
+  try {
+    const { userToUnfollowId } = req.params;
+    const userId = req.user.id;
+    
+    // Vérifier que l'utilisateur à ne plus suivre existe
+    const userToUnfollow = await User.findById(userToUnfollowId);
+    if (!userToUnfollow) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Vérifier si l'utilisateur suit déjà la personne
+    const user = await User.findById(userId);
+    if (!user.following.includes(userToUnfollowId)) {
+      return res.status(400).json({ message: 'Vous ne suivez pas cet utilisateur' });
+    }
+    
+    // Retirer l'utilisateur à ne plus suivre de la liste des following de l'utilisateur actuel
+    await User.findByIdAndUpdate(userId, {
+      $pull: { following: userToUnfollowId }
+    });
+    
+    // Retirer l'utilisateur actuel de la liste des followers de l'utilisateur à ne plus suivre
+    await User.findByIdAndUpdate(userToUnfollowId, {
+      $pull: { followers: userId }
+    });
+    
+    res.json({ message: 'Vous ne suivez plus cet utilisateur' });
+  } catch (error) {
+    console.error('Erreur lors du unfollow:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+// Récupérer les utilisateurs suggérés (ceux que l'utilisateur ne suit pas encore)
+exports.getSuggestedUsers = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    
+    // Récupérer les utilisateurs que l'utilisateur actuel ne suit pas encore
+    // et qui ne sont pas l'utilisateur lui-même
+    const suggestedUsers = await User.find({
+      _id: { $nin: [...user.following, userId] }
+    })
+    .select('_id nom prenom username photo bio')
+    .limit(5);
+    
+    res.json(suggestedUsers);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des suggestions:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+// Rechercher des utilisateurs par nom d'utilisateur ou nom/prénom
+exports.searchUsers = async (req, res) => {
+  try {
+    const { query } = req.query;
+    
+    if (!query) {
+      return res.status(400).json({ message: 'Terme de recherche requis' });
+    }
+    
+    const users = await User.find({
+      $or: [
+        { username: { $regex: query, $options: 'i' } },
+        { nom: { $regex: query, $options: 'i' } },
+        { prenom: { $regex: query, $options: 'i' } }
+      ]
+    })
+    .select('_id nom prenom username photo bio')
+    .limit(10);
+    
+    res.json(users);
+  } catch (error) {
+    console.error('Erreur lors de la recherche d\'utilisateurs:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+// Récupérer les tweets likés par un utilisateur
+exports.getLikedTweets = async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    const likedTweets = await Tweet.find({
+      _id: { $in: user.likes }
+    })
+    .populate('author', '_id nom prenom username photo')
+    .sort({ date: -1 });
+    
+    res.json(likedTweets);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des tweets likés:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+// Récupérer la liste des abonnés d'un utilisateur
+exports.getFollowers = async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    const user = await User.findOne({ username }).select('followers');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Récupérer les détails de chaque abonné
+    const followers = await User.find({ 
+      _id: { $in: user.followers }
+    }).select('_id nom prenom username photo bio');
+    
+    res.json(followers);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des abonnés:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+// Récupérer la liste des abonnements d'un utilisateur
+exports.getFollowing = async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    const user = await User.findOne({ username }).select('following');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Récupérer les détails de chaque abonnement
+    const following = await User.find({ 
+      _id: { $in: user.following }
+    }).select('_id nom prenom username photo bio');
+    
+    res.json(following);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des abonnements:', error);
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+
+const express = require('express');
+const router = express.Router();
+const userController = require('../controllers/userController');
+const { auth } = require('../middleware/authMiddleware');
+
+// Routes pour le profil utilisateur
+router.get('/profile/:username', userController.getUserByUsername);
+router.put('/profile', auth, userController.updateProfile);
+
+// Routes pour follow/unfollow
+router.post('/follow/:userToFollowId', auth, userController.followUser);
+router.post('/unfollow/:userToUnfollowId', auth, userController.unfollowUser);
+
+// Routes pour obtenir les abonnés et abonnements
+router.get('/:username/followers', userController.getFollowers);
+router.get('/:username/following', userController.getFollowing);
+
+// Route pour les tweets likés
+router.get('/:username/likes', userController.getLikedTweets);
+
+module.exports = router;
+
+
+
+
+const express = require("express");
+const router = express.Router();
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs"); // Ajouté pour vérifier/créer le dossier
+const userController = require("../controllers/userController");
+const { auth } = require("../middleware/authMiddleware");
+
+// Vérifier que le dossier "uploads/" existe, sinon le créer automatiquement
+const uploadDir = "uploads/";
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir); // Utilise le dossier assuré d'exister
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+const upload = multer({ storage });
+
+// Routes pour le profil utilisateur
+router.get("/profile/:username", userController.getUserByUsername);
+router.put(
+  "/profile",
+  auth,
+  upload.fields([
+    { name: "photo", maxCount: 1 },
+    { name: "banner", maxCount: 1 },
+  ]),
+  userController.updateProfile
+);
+
+// Routes pour follow/unfollow
+router.post("/follow/:userToFollowId", auth, userController.followUser);
+router.post("/unfollow/:userToUnfollowId", auth, userController.unfollowUser);
+
+// Routes pour obtenir les abonnés et abonnements
+router.get("/:username/followers", userController.getFollowers);
+router.get("/:username/following", userController.getFollowing);
+
+// Route pour les tweets likés
+router.get("/:username/likes", userController.getLikedTweets);
+
+module.exports = router;
+
+
+require("dotenv").config();
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+
+// Importer tous les modèles (nécessaire pour que MongoDB crée les collections)
+require("./models/User");
+require("./models/Tweet");
+require("./models/Replies");
+require("./models/Notification");
+
+const app = express();
+const PORT = process.env.PORT || 5001;
+
+// Middleware de base
+app.use(cors());
+app.use(express.json());
+
+// Route de test simple
+// Route pour créer un utilisateur test (temporaire)
+app.get("/api/test", async (req, res) => {
+  try {
+    const User = mongoose.model("User");
+
+    // Vérifier si l'utilisateur test existe déjà
+    const existingUser = await User.findOne({ email: "test@test.com" });
+
+    if (existingUser) {
+      return res.json({
+        message: "Utilisateur test existe déjà",
+        user: existingUser,
+      });
+    }
+
+    // Créer un nouvel utilisateur test
+    const newUser = new User({
+      email: "test@test.com",
+      password: "password123",
+      nom: "Test",
+      prenom: "User",
+      username: "testuser",
+      bio: "Ceci est un utilisateur test",
+    });
+
+    await newUser.save();
+
+    res.json({ message: "Utilisateur test créé avec succès", user: newUser });
+  } catch (error) {
+    console.error("Erreur:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Importation des routes
+const authRoutes = require("./routes/authRoutes");
+const userRoutes = require("./routes/userRoutes");
+
+// Application des routes
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+
+// Connexion à MongoDB puis démarrage du serveur
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log("Connecté à MongoDB");
+
+    // Démarrage du serveur après connexion réussie
+    app.listen(PORT, () => {
+      console.log(`Serveur démarré sur le port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Erreur de connexion à MongoDB:", err);
+    process.exit(1);
+  });
+
+// Gestion des événements de connexion
+mongoose.connection.on("connected", () => {
+  console.log("Mongoose connecté à la base de données");
+});
+
+mongoose.connection.on("error", (err) => {
+  console.error(`Erreur de connexion Mongoose: ${err}`);
+});
+
+mongoose.connection.on("disconnected", () => {
+  console.log("Mongoose déconnecté de la base de données");
+});
+
+// Gestion propre de la déconnexion
+process.on("SIGINT", async () => {
+  await mongoose.connection.close();
+  console.log("Connexion MongoDB fermée");
+  process.exit(0);
+});
+
+const express = require('express');
+const router = express.Router();
+const authController = require('../controllers/authController');
+const { auth } = require('../middleware/authMiddleware');
+
+// Routes d'authentification
+router.post('/register', authController.register);
+router.post('/login', authController.login);
+router.get('/current', auth, authController.getCurrentUser);
+
+module.exports = router;
+
+
+const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
+const User = mongoose.model('User');
+
+// Middleware d'authentification pour protéger les routes
+exports.auth = async (req, res, next) => {
+  try {
+    // Vérifier la présence du token dans les headers
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ message: 'Accès non autorisé, token manquant' });
+    }
+    
+    // Vérifier et décoder le token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Vérifier que l'utilisateur existe toujours
+    const user = await User.findById(decoded.id).select('-password');
+    
+    if (!user) {
+      return res.status(401).json({ message: 'Utilisateur non trouvé' });
+    }
+    
+    // Ajouter les informations de l'utilisateur à la requête
+    req.user = {
+      id: user._id.toString(),
+      username: user.username
+    };
+    
+    next();
+  } catch (error) {
+    console.error('Erreur d\'authentification:', error);
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: 'Token invalide' });
+    }
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Token expiré' });
+    }
+    
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
