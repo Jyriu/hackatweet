@@ -28,6 +28,8 @@ const Tweet = ({ tweet }) => {
   const [comments, setComments] = useState(tweet.comments || []);
   const [likesCount, setLikesCount] = useState(tweet.likes || 0);
   const [isLiking, setIsLiking] = useState(false);
+  const [retweetComment, setRetweetComment] = useState("");  // Commentaire du retweet
+  const [showRetweetField, setShowRetweetField] = useState(false);  // Pour afficher ou non le champ de retweet
   const [error, setError] = useState(null);
 
   const handleLike = async () => {
@@ -83,12 +85,46 @@ const Tweet = ({ tweet }) => {
     }
   };
 
+  const handleRetweet = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        `${url}/api/tweet/retweet/${tweet._id}/`,
+        { text: retweetComment || "" },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      console.log("Retweet réussi:", response.data);
+      setRetweetComment(""); 
+      setShowRetweetField(false);
+    } catch (error) {
+      console.error("Erreur lors du retweet:", error);
+      setError("Erreur lors du retweet");
+    }
+  };
+
   return (
     <Card sx={{ marginBottom: 2, borderRadius: 2, boxShadow: 3 }}>
       <CardContent>
         <Typography variant="h6" sx={{ fontWeight: "bold" }}>
           {tweet.text}
         </Typography>
+
+        {/* Afficher le tweet original si présent */}
+        {tweet.originalTweet && (
+          <Box sx={{ marginTop: 2, paddingLeft: 2, borderLeft: "2px solid #ccc" }}>
+            <Typography variant="body2" color="textSecondary">
+              Tweet original :
+            </Typography>
+            <Typography variant="body2" color="text.primary" sx={{ marginTop: 1 }}>
+              {tweet.originalTweet.text}
+            </Typography>
+          </Box>
+        )}
 
         {tweet.mediaUrl && (
           <Box sx={{ marginTop: 2 }}>
@@ -114,11 +150,35 @@ const Tweet = ({ tweet }) => {
           <IconButton onClick={handleComment} aria-label="commenter" color="primary">
             <ChatBubbleOutlineIcon />
           </IconButton>
-          <IconButton onClick={() => console.log("Retweeter le tweet:", tweet._id)} aria-label="retweeter" color="primary">
+          <IconButton onClick={() => setShowRetweetField(!showRetweetField)} aria-label="retweeter" color="primary">
             <RepeatIcon />
           </IconButton>
         </ButtonGroup>
 
+        {/* Champ de commentaire pour le retweet */}
+        {showRetweetField && (
+          <Box sx={{ marginTop: 2 }}>
+            <TextField
+              fullWidth
+              multiline
+              rows={2}
+              label="Ajouter un commentaire pour le retweet (optionnel)"
+              variant="outlined"
+              value={retweetComment}
+              onChange={(e) => setRetweetComment(e.target.value)}
+            />
+            <Button
+              variant="contained"
+              color="primary"
+              sx={{ marginTop: 1 }}
+              onClick={handleRetweet}
+            >
+              Retweeter
+            </Button>
+          </Box>
+        )}
+
+        {/* Champ de commentaire principal */}
         {showCommentField && (
           <Box sx={{ marginTop: 2 }}>
             <TextField
