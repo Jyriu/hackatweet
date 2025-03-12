@@ -1,6 +1,14 @@
 import React, { useState, useContext } from "react";
 import axios from "axios";
-import { Container, TextField, Button, Card, CardContent, Typography, Alert } from "@mui/material";
+import {
+  Container,
+  TextField,
+  Button,
+  Card,
+  CardContent,
+  Typography,
+  Alert,
+} from "@mui/material";
 import { UserContext } from "../context/UserContext";
 import { useNavigate } from "react-router-dom";
 
@@ -11,7 +19,7 @@ const Register = () => {
     nom: "",
     prenom: "",
     username: "",
-    bio: ""
+    bio: "",
   });
 
   const [error, setError] = useState(null);
@@ -56,7 +64,11 @@ const Register = () => {
           <Typography variant="h5" textAlign="center" color="primary">
             Inscription
           </Typography>
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
@@ -109,11 +121,11 @@ const Register = () => {
               rows={3}
               onChange={handleChange}
             />
-            <Button 
-              type="submit" 
-              fullWidth 
-              variant="contained" 
-              color="primary" 
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              color="primary"
               sx={{ marginTop: 2 }}
             >
               S'inscrire

@@ -1,6 +1,14 @@
 import React, { useState, useContext } from "react";
 import axios from "axios";
-import { Container, TextField, Button, Card, CardContent, Typography, Alert } from "@mui/material";
+import {
+  Container,
+  TextField,
+  Button,
+  Card,
+  CardContent,
+  Typography,
+  Alert,
+} from "@mui/material";
 import { UserContext } from "../context/UserContext";
 import { useNavigate } from "react-router-dom";
 
@@ -10,6 +18,7 @@ const Login = () => {
   const [error, setError] = useState(null);
   const { setUser } = useContext(UserContext);
   const navigate = useNavigate();
+  const url = import.meta.env.VITE_BACKEND_URL;
 
   const handleLogin = async () => {
     try {
@@ -42,7 +51,11 @@ const Login = () => {
           <Typography variant="h5" textAlign="center" color="primary">
             Connexion
           </Typography>
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
           <TextField
             fullWidth
             label="Adresse Email"
@@ -60,11 +73,11 @@ const Login = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <Button 
-            fullWidth 
-            variant="contained" 
-            color="primary" 
-            sx={{ marginTop: 2 }} 
+          <Button
+            fullWidth
+            variant="contained"
+            color="primary"
+            sx={{ marginTop: 2 }}
             onClick={handleLogin}
           >
             Se connecter
