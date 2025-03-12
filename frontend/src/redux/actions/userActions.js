@@ -91,6 +91,35 @@ export const logoutUser = () => (dispatch) => {
   dispatch(logout());
 };
 
+// Action pour basculer un paramètre utilisateur (caméra, notifications, etc.)
+export const toggleUserSetting = (setting) => async (dispatch) => {
+  try {
+    dispatch(setUserLoading(true));
+    
+    const response = await axios.put(
+      `${API_URL}/api/users/toggle-setting/${setting}`, 
+      {}, // Corps vide car le paramètre est dans l'URL
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      }
+    );
+    
+    dispatch(setUser(response.data.user));
+    dispatch(setUserError(null));
+    
+    return response.data;
+  } catch (error) {
+    console.error(`Erreur lors du basculement du paramètre ${setting}:`, error);
+    const errorMessage = error.response?.data?.message || `Erreur lors du basculement de ${setting}`;
+    dispatch(setUserError(errorMessage));
+    throw error;
+  } finally {
+    dispatch(setUserLoading(false));
+  }
+};
+
 // Action pour mettre à jour le profil
 export const updateProfile = (profileData) => async (dispatch) => {
   try {
