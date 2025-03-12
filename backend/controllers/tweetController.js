@@ -6,7 +6,7 @@ const Replies = mongoose.model('Replies');
 const Emotion = mongoose.model('Emotion');
 
 // Créer un nouveau tweet
-exports.createTweet = async (req, res) => {
+/* exports.createTweet = async (req, res) => {
     try {
 
         const { text, mediaUrl } = req.body;
@@ -62,7 +62,63 @@ exports.createTweet = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la création du tweet', error: error.message });
     }
 };
+ */
 
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/')
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname))
+  }
+});
+
+const upload = multer({ storage: storage });
+
+// Export the upload middleware
+module.exports.upload = upload;
+exports.createTweet = async (req, res) => {
+    try {
+      const { content, hashtags = [], mentions = [], link } = req.body; // Include `link`
+      const author = req.user.id;
+      
+      // Handle file upload
+      const mediaUrl = req.file ? `/uploads/${req.file.filename}` : '';
+  
+      // Convert mentions to user IDs
+      const idmentions = await Promise.all(
+        JSON.parse(mentions).map(async (username) => {
+          const user = await User.findOne({ username });
+          return user?._id;
+        })
+      );
+  
+      const newTweet = new Tweet({
+        text: content,
+        mediaUrl,
+        link, // Add the link field here
+        hashtags: JSON.parse(hashtags),
+        idmentions: idmentions.filter(id => id),
+        author,
+      });
+  
+      await newTweet.save();
+      
+      // Populate author information before sending response
+      const populatedTweet = await Tweet.findById(newTweet._id)
+        .populate('author', 'username')
+        .populate('idmentions', 'username');
+  
+      res.status(201).json(populatedTweet);
+    } catch (error) {
+      console.error("Error creating tweet:", error);
+      res.status(500).json({ message: "Error creating tweet" });
+    }
+  };
+  
 
 // Récupérer tous les tweets triés par date
 /* exports.getTweets = async (req, res) => {
@@ -88,7 +144,7 @@ exports.getTweets = async (req, res) => {
   
       // 2. Get seen tweet IDs
       const seenTweetIds = await Emotion.find({ user_id: userId }).distinct('tweet_id');
-      console.log(seenTweetIds)
+      //console.log(seenTweetIds)
       let allMatchingTweets = [];
       let currentPage = parsedPage;
   
@@ -112,7 +168,7 @@ exports.getTweets = async (req, res) => {
           break;
         }
   
-        console.log(negativeHashtags)
+        //console.log(negativeHashtags)
         // 5. Filter out tweets containing any negative hashtags
         const filteredTweets = tweets.filter(tweet => {
           if (!tweet.hashtags) return true; // If no hashtags, keep the tweet
@@ -354,7 +410,7 @@ exports.likeTweet = async (req, res) => {
             // Retirer le like
             tweet.userLikes = tweet.userLikes.filter(userId => userId.toString() !== req.user.id);
             await tweet.save();
-            console.log(`✅ [Tweet] Like retiré par ${req.user.id} pour le tweet ${tweet._id}`);
+            //console.log(`✅ [Tweet] Like retiré par ${req.user.id} pour le tweet ${tweet._id}`);
             return res.json({ message: 'Like retiré', tweet });
         } else {
             // Ajouter le like
@@ -371,9 +427,9 @@ exports.likeTweet = async (req, res) => {
                     contentModel: 'Tweet',
                     read: false
                 });
-                console.log(`✅ [Tweet] Like + notification envoyée de ${req.user.id} à ${tweet.author} pour le tweet ${tweet._id}`);
+                //console.log(`✅ [Tweet] Like + notification envoyée de ${req.user.id} à ${tweet.author} pour le tweet ${tweet._id}`);
             } else {
-                console.log(`✅ [Tweet] Like sans notification (auteur = liker) pour le tweet ${tweet._id}`);
+               // console.log(`✅ [Tweet] Like sans notification (auteur = liker) pour le tweet ${tweet._id}`);
             }
 
             return res.json({ message: 'Tweet liké', tweet });

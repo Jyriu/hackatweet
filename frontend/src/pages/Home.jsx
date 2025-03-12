@@ -3,7 +3,7 @@ import { Container, Typography, Box } from "@mui/material";
 import TweetCreation from "../components/TweetCreation";
 import TweetList from "../components/TweetList";
 import { fetchTweetsFromApi, saveEmotionToApi } from "../services/api";
-import useEmotionDetection from "../hooks/useEmotionDetection"; // Import the hook
+import useEmotionDetection from "../hooks/useEmotionDetection";
 
 const Home = () => {
   const [tweets, setTweets] = useState([]);
