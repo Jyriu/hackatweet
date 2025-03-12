@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+
 const Tweet = mongoose.model('Tweet');
 const User = mongoose.model('User');
 
@@ -51,8 +52,11 @@ exports.advancedSearch = async (req, res) => {
             searchCriteria.text = regex;
             results.tweets = await Tweet.find(searchCriteria).sort(sortCriteria).populate('author', 'username');
         } else {
+            searchCriteria.text = regex;
+            results.tweets = await Tweet.find(searchCriteria).sort(sortCriteria).populate('author', 'username');
             searchCriteria.hashtags = regex;
             const tweets = await Tweet.find(searchCriteria).sort(sortCriteria).populate('author', 'username');
+            // results.tweets = tweets;
             results.hashtags = [...new Set(tweets.flatMap(tweet => tweet.hashtags.filter(hashtag => regex.test(hashtag))))];
             searchCriteria = {
                 $or: [
@@ -63,7 +67,6 @@ exports.advancedSearch = async (req, res) => {
             };
             results.users = await User.find(searchCriteria).select('username nom prenom photo bio');
             searchCriteria.text = regex;
-            results.tweets = await Tweet.find(searchCriteria).sort(sortCriteria).populate('author', 'username');
         }
 
         res.json(results);
