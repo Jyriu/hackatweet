@@ -12,7 +12,6 @@ import {
   AppBar,
   Toolbar,
   Typography,
-  Button,
   IconButton,
   Badge,
   Box,
@@ -21,8 +20,8 @@ import {
   Avatar,
 } from "@mui/material";
 import NotificationsIcon from "@mui/icons-material/Notifications";
-import HomeIcon from "@mui/icons-material/Home";
 import SettingsIcon from "@mui/icons-material/Settings";
+import LogoutIcon from "@mui/icons-material/Logout";
 
 // Pages
 import Home from "./pages/Home";
@@ -44,30 +43,22 @@ import { loadUser, logoutUser } from "./redux/actions/userActions";
 // Composant pour les routes protégées
 const ProtectedRoute = ({ element }) => {
   const user = useSelector((state) => state.user.currentUser);
-
-  // Si l'utilisateur n'est pas connecté, rediriger vers la page d'authentification
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
-
-  // Sinon, rendre le composant demandé
   return element;
 };
 
 // Composant pour les routes d'authentification
 const AuthRoute = ({ element }) => {
   const user = useSelector((state) => state.user.currentUser);
-
-  // Si l'utilisateur est déjà connecté, rediriger vers la page d'accueil
   if (user) {
     return <Navigate to="/" replace />;
   }
-
-  // Sinon, rendre le composant demandé
   return element;
 };
 
-// Composant de navigation avec Redux (défini à l'intérieur du Router)
+// Boutons de navigation (supprimé le bouton "Home")
 function NavigationButtons() {
   const user = useSelector((state) => state.user.currentUser);
   const unreadCount = useSelector((state) => state.notifications.unreadCount);
@@ -77,23 +68,14 @@ function NavigationButtons() {
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-      <Tooltip title="Home">
-        <IconButton
-          color="inherit"
-          onClick={() => navigate("/")}
-          sx={{ fontSize: "1.5rem" }} // Increase icon size
-        >
-          <HomeIcon fontSize="large" /> {/* Increase icon size */}
-        </IconButton>
-      </Tooltip>
       <Tooltip title="Notifications">
         <IconButton
           color="inherit"
           onClick={() => navigate("/notifications")}
-          sx={{ fontSize: "1.5rem" }} // Increase icon size
+          sx={{ fontSize: "1.5rem" }}
         >
           <Badge badgeContent={unreadCount} color="error">
-            <NotificationsIcon fontSize="large" /> {/* Increase icon size */}
+            <NotificationsIcon fontSize="large" />
           </Badge>
         </IconButton>
       </Tooltip>
@@ -101,12 +83,12 @@ function NavigationButtons() {
         <IconButton
           color="inherit"
           onClick={() => navigate("/profile")}
-          sx={{ fontSize: "1.5rem" }} // Increase icon size
+          sx={{ fontSize: "1.5rem" }}
         >
           <Avatar
             src={user.profilePicture}
             alt={user.username}
-            sx={{ width: 40, height: 40 }} // Increase avatar size
+            sx={{ width: 40, height: 40 }}
           />
         </IconButton>
       </Tooltip>
@@ -114,7 +96,7 @@ function NavigationButtons() {
   );
 }
 
-// Bouton de déconnexion avec Redux (défini à l'intérieur du Router)
+// Bouton de déconnexion avec icône
 function LogoutButton() {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.user.currentUser);
@@ -126,46 +108,51 @@ function LogoutButton() {
   };
 
   return user ? (
-    <Button
-      color=""
-      onClick={handleLogout}
-      sx={{
-        textTransform: "none",
-        fontWeight: "bold",
-        fontSize: "1.5rem", // Increase button text size
-        padding: "8px 16px", // Increase button padding
-      }}
-    >
-      Déconnexion
-    </Button>
+    <Tooltip title="Déconnexion">
+      <IconButton
+        onClick={handleLogout}
+        sx={{
+          fontSize: "1.5rem",
+          padding: "8px",
+        }}
+      >
+        <LogoutIcon fontSize="large" />
+      </IconButton>
+    </Tooltip>
   ) : null;
 }
 
-// Composant d'application principale qui utilise les composants de navigation
+// Composant d'application principale avec navigation
 function AppContent() {
   const user = useSelector((state) => state.user.currentUser);
 
   return (
     <>
-      {/* Barre de navigation - visible uniquement si l'utilisateur est connecté */}
       {user && (
         <AppBar
-          position="fixed" // Fix the navbar at the top
+          position="fixed"
           sx={{
             backgroundColor: "#f5f8fa",
             color: "#545f69",
             boxShadow: "0px 0px 0px rgba(0, 0, 0, 0.1)",
-            zIndex: 1200, // Ensure the navbar is above other content
+            zIndex: 1200,
           }}
         >
           <Toolbar>
             <Typography
+              component={Link}
+              to="/"
               sx={{
                 fontSize: "2rem",
                 flexGrow: 1,
                 fontWeight: "bold",
                 color: "primary.main",
-                fontFamily: "'Poppins', sans-serif", // Use Arial as the font
+                fontFamily: "'Poppins', sans-serif",
+                textDecoration: "none",
+                cursor: "pointer",
+                "&:hover": {
+                  textDecoration: "none",
+                },
               }}
             >
               HackaTweet
@@ -176,9 +163,9 @@ function AppContent() {
                 color="inherit"
                 component={Link}
                 to="/settings"
-                sx={{ fontSize: "1.5rem" }} // Increase icon size
+                sx={{ fontSize: "1.5rem" }}
               >
-                <SettingsIcon fontSize="large" /> {/* Increase icon size */}
+                <SettingsIcon fontSize="large" />
               </IconButton>
             </Tooltip>
             <LogoutButton />
@@ -186,37 +173,17 @@ function AppContent() {
         </AppBar>
       )}
 
-      {/* Add padding to the main content to avoid overlap with the fixed navbar */}
       <Box sx={{ paddingTop: user ? "64px" : 0 }}>
         <Routes>
           <Route path="/" element={<ProtectedRoute element={<Home />} />} />
-          <Route
-            path="/profile"
-            element={<ProtectedRoute element={<Profile />} />}
-          />
+          <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
           <Route path="/auth" element={<AuthRoute element={<Auth />} />} />
-          <Route
-            path="/notifications"
-            element={<ProtectedRoute element={<Notifications />} />}
-          />
-          <Route
-            path="/settings"
-            element={<ProtectedRoute element={<Settings />} />}
-          />
-          <Route
-            path="/user/:username"
-            element={<ProtectedRoute element={<UserProfile />} />}
-          />
-
-          {/* Redirection des anciennes routes vers /auth */}
+          <Route path="/notifications" element={<ProtectedRoute element={<Notifications />} />} />
+          <Route path="/settings" element={<ProtectedRoute element={<Settings />} />} />
+          <Route path="/user/:username" element={<ProtectedRoute element={<UserProfile />} />} />
           <Route path="/login" element={<Navigate to="/auth" replace />} />
           <Route path="/register" element={<Navigate to="/auth" replace />} />
-
-          {/* Redirection par défaut */}
-          <Route
-            path="*"
-            element={<Navigate to={user ? "/" : "/auth"} replace />}
-          />
+          <Route path="*" element={<Navigate to={user ? "/" : "/auth"} replace />} />
         </Routes>
       </Box>
     </>
@@ -228,12 +195,10 @@ const App = () => {
   const user = useSelector((state) => state.user.currentUser);
   const isConnected = useSelector((state) => state.socket.connected);
 
-  // Charger l'utilisateur au démarrage de l'application
   useEffect(() => {
     dispatch(loadUser());
   }, [dispatch]);
 
-  // Connecter au WebSocket lorsque l'utilisateur est authentifié
   useEffect(() => {
     if (user && !isConnected) {
       dispatch(connectToSocket());
