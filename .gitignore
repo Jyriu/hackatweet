@@ -1,0 +1,44 @@
+# Variables d'environnement
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Dépendances
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Dossiers de construction/build
+/dist
+/build
+
+# Logs
+logs
+*.log
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Fichiers d'IDE et éditeurs
+/.idea
+/.vscode
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# Fichiers de couverture de tests
+/coverage
+
+# Fichiers temporaires
+/tmp
+/temp
+
+# Fichiers uploadés (si applicable)
+/uploads
+
+test-socket.html

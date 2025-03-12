@@ -17,11 +17,11 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 # Copier le reste du code de l'API Django
 COPY . .
 
-# Donner les droits d'exécution au script de démarrage
-RUN chmod +x start.sh
+# Donner les droits d'exécution au script de démarrage (chmod 755 plus explicite)
+RUN chmod 755 start.sh
 
 # Exposer le port de l'API
 EXPOSE 8000
 
 # Lancer le script de démarrage qui démarrera Django et uvicorn
-CMD ["./start.sh"]
+CMD ["sh", "./start.sh"]
