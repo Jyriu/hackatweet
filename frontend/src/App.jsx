@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   AppBar, 
@@ -24,6 +24,19 @@ import Notifications from "./pages/Notifications";
 // Redux actions
 import { connectToSocket, disconnectFromSocket } from './redux/actions/socketActions';
 import { loadUser, logoutUser } from './redux/actions/userActions';
+
+// Composant pour les routes protégées
+const ProtectedRoute = ({ element }) => {
+  const user = useSelector(state => state.user.currentUser);
+  
+  // Si l'utilisateur n'est pas connecté, rediriger vers la page d'inscription
+  if (!user) {
+    return <Navigate to="/register" replace />;
+  }
+  
+  // Sinon, rendre le composant demandé
+  return element;
+};
 
 // Composant de navigation avec Redux (défini à l'intérieur du Router)
 function NavigationButtons() {
@@ -67,26 +80,32 @@ function LogoutButton() {
 
 // Composant d'application principale qui utilise les composants de navigation
 function AppContent() {
+  const user = useSelector(state => state.user.currentUser);
+  
   return (
     <>
-      {/* Barre de navigation */}
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            HackaTweet
-          </Typography>
-          <NavigationButtons />
-          <LogoutButton />
-        </Toolbar>
-      </AppBar>
+      {/* Barre de navigation - visible uniquement si l'utilisateur est connecté */}
+      {user && (
+        <AppBar position="static">
+          <Toolbar>
+            <Typography variant="h6" sx={{ flexGrow: 1 }}>
+              HackaTweet
+            </Typography>
+            <NavigationButtons />
+            <LogoutButton />
+          </Toolbar>
+        </AppBar>
+      )}
 
       {/* Routes */}
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/profile" element={<Profile />} />
+        <Route path="/" element={<ProtectedRoute element={<Home />} />} />
+        <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/notifications" element={<Notifications />} />
+        <Route path="/notifications" element={<ProtectedRoute element={<Notifications />} />} />
+        {/* Redirection par défaut */}
+        <Route path="*" element={<Navigate to={user ? "/" : "/register"} replace />} />
       </Routes>
     </>
   );
