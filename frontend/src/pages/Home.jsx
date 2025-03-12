@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Container, Typography, Grid, CircularProgress, Box } from "@mui/material";
-import Tweet from "../components/Tweet";
-import NewTweet from "../components/NewTweet";
+import { Container, Typography, Box } from "@mui/material";
+import TweetCreation from "../components/TweetCreation";
+import TweetList from "../components/TweetList";
 import { fetchTweetsFromApi, saveEmotionToApi } from "../services/api";
 import useEmotionDetection from "../hooks/useEmotionDetection"; // Import the hook
 
@@ -11,7 +11,6 @@ const Home = () => {
   const [visibleTweetId, setVisibleTweetId] = useState(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const tweetsContainerRef = useRef(null);
   const isFetching = useRef(false);
   const lastTweetRef = useRef(null);
   const user = JSON.parse(localStorage.getItem("user")); // Parse the user object
@@ -74,61 +73,15 @@ const Home = () => {
     }
   };
 
-  // Handle scroll event with debouncing
+  // Handle scroll event
   const handleScroll = useCallback(() => {
-    if (!tweetsContainerRef.current) return;
+    const lastTweetId = tweets[tweets.length - 1]?._id;
 
-    const container = tweetsContainerRef.current;
-    const { scrollTop, scrollHeight, clientHeight } = container;
-
-    // Check if we're at the end of the list (with a margin)
-    if (
-      scrollTop + clientHeight >= scrollHeight - 100 &&
-      hasMore &&
-      !loading &&
-      !isFetching.current
-    ) {
-      const lastTweetId = tweets[tweets.length - 1]?._id;
-
-      if (lastTweetId && lastTweetId !== lastTweetRef.current) {
-        lastTweetRef.current = lastTweetId;
-        setPage((prevPage) => prevPage + 1);
-      }
+    if (lastTweetId && lastTweetId !== lastTweetRef.current) {
+      lastTweetRef.current = lastTweetId;
+      setPage((prevPage) => prevPage + 1);
     }
-
-    // Track the first fully visible tweet
-    const tweetsElements = container.querySelectorAll(".tweet-item");
-    for (let i = 0; i < tweetsElements.length; i++) {
-      const tweet = tweetsElements[i];
-      const rect = tweet.getBoundingClientRect();
-
-      if (rect.top >= 0 && rect.bottom <= container.clientHeight) {
-        const tweetId = tweet.getAttribute("data-tweet-id");
-        if (tweetId !== visibleTweetId) {
-          setVisibleTweetId(tweetId);
-          if (emotionData) {
-            saveEmotion(tweetId, emotionData.dominant_emotion);
-          }
-        }
-        break;
-      }
-    }
-  }, [tweets, visibleTweetId, emotionData, hasMore, loading, userId]);
-
-  // Add scroll event listener with debouncing
-  useEffect(() => {
-    const container = tweetsContainerRef.current;
-    if (!container) return;
-
-    const debouncedHandleScroll = () => {
-      if (!loading && !isFetching.current) {
-        handleScroll();
-      }
-    };
-
-    container.addEventListener("scroll", debouncedHandleScroll);
-    return () => container.removeEventListener("scroll", debouncedHandleScroll);
-  }, [handleScroll, loading]);
+  }, [tweets]);
 
   return (
     <Box
@@ -162,52 +115,19 @@ const Home = () => {
           </Typography>
         </Box>
 
-        {/* New Tweet Section */}
-        <Box
-          sx={{
-            backgroundColor: "#f5f8fa",
-            borderBottom: "1px solid #e0e0e0",
-            padding: 2,
-          }}
-        >
-          <NewTweet onAddTweet={addNewTweet} />
-        </Box>
+        {/* Tweet Creation Section */}
+        <TweetCreation onAddTweet={addNewTweet} />
 
-        {/* Tweets List - Scrollable Section */}
-        <Box
-          ref={tweetsContainerRef}
-          sx={{
-            flex: 1,
-            overflowY: "auto",
-            padding: 2,
-          }}
-        >
-          {loading && tweets.length === 0 ? (
-            <Grid container justifyContent="center" sx={{ marginTop: 3 }}>
-              <CircularProgress />
-            </Grid>
-          ) : (
-            <Grid container spacing={2}>
-              {tweets.map((tweet) => (
-                <Grid
-                  item
-                  xs={12}
-                  key={tweet._id}
-                  className="tweet-item"
-                  data-tweet-id={tweet._id}
-                  sx={{
-                    backgroundColor: "#f5f8fa", // White background for each tweet
-                    borderRadius: 2, // Rounded corners for tweets
-                    padding: 2, // Padding inside each tweet
-                    marginBottom: 2, // Space between tweets
-                  }}
-                >
-                  <Tweet tweet={tweet} />
-                </Grid>
-              ))}
-            </Grid>
-          )}
-        </Box>
+        {/* Tweet List Section */}
+        <TweetList
+          tweets={tweets}
+          loading={loading}
+          hasMore={hasMore}
+          onScroll={handleScroll}
+          onSaveEmotion={saveEmotion}
+          visibleTweetId={visibleTweetId}
+          emotionData={emotionData}
+        />
 
         {/* Hidden Video and Canvas Elements */}
         <video ref={videoRef} autoPlay playsInline style={{ display: "none" }} />
