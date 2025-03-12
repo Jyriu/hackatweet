@@ -47,9 +47,25 @@ const Tweet = ({ tweet }) => {
   }, [tweet._id]);
 
   // Gestion des clics pour les boutons
-  const handleLike = () => {
-    console.log("Like tweet:", tweet._id);
-    // Ajoutez ici la logique pour liker le tweet
+  const handleLike = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        `${url}/api/tweet/like/${tweet._id}/`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      // Mettre à jour l'état du tweet (si nécessaire)
+      console.log("Tweet liké:", response.data);
+      // Vous pouvez mettre à jour l'état local du tweet ici si nécessaire
+    } catch (error) {
+      console.error("Erreur lors du like du tweet:", error);
+    }
   };
 
   const handleComment = () => {
@@ -114,6 +130,9 @@ const Tweet = ({ tweet }) => {
         <ButtonGroup sx={{ marginTop: 2 }}>
           <IconButton onClick={handleLike} aria-label="like" color="primary">
             <FavoriteBorderIcon />
+            <Typography variant="body2" sx={{ marginLeft: 1 }}>
+              {tweet.likes || tweet.userLikes.length} {/* Afficher le nombre de likes */}
+            </Typography>
           </IconButton>
           <IconButton onClick={handleComment} aria-label="commenter" color="primary">
             <ChatBubbleOutlineIcon />
