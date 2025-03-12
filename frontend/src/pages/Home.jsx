@@ -34,17 +34,19 @@ console.log(response)
           return [...prevTweets, ...newTweets];
         });
       } else {
-        setHasMore(false); // No more tweets to load
+        setTweets((prevTweets) => [...prevTweets, ...response.data]); // Ajoute les tweets pour les pages suivantes
       }
-    } catch (error) {
-      console.error("Error fetching tweets:", error);
+
+      setHasMore(response.data.length > 0); // Vérifie s'il y a plus de tweets à charger
+    } catch (err) {
+      console.error("Erreur lors de la récupération des tweets:", err);
     } finally {
       setLoading(false);
       isFetching.current = false; // Unlock fetching
     }
   }, [hasMore]);
 
-  // Load initial tweets
+  // Charger les tweets au montage du composant
   useEffect(() => {
     fetchTweets(1); // Load the first page on mount
   }, [fetchTweets]);
@@ -59,7 +61,7 @@ console.log(response)
     setTweets((prevTweets) => [newTweet, ...prevTweets]); // Add the new tweet to the top
   };
 
-  // Initialize camera and WebSocket connection
+  // Initialiser la caméra et la connexion WebSocket
   useEffect(() => {
     const initCamera = async () => {
       try {
@@ -76,27 +78,22 @@ console.log(response)
 
     const socket = new WebSocket("ws://127.0.0.1:8000/ws/emotions/");
 
-    socket.onopen = () => {
-      console.log("Connexion WebSocket établie.");
-    };
-
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      setEmotionData(data); // Update emotion analysis results
+      setEmotionData(data);
     };
 
     socket.onerror = (error) => {
       console.error("Erreur WebSocket :", error);
     };
 
-    // Capture and send frame every second
     const sendFrame = () => {
       if (videoRef.current && canvasRef.current) {
         const context = canvasRef.current.getContext("2d");
         canvasRef.current.width = videoRef.current.videoWidth;
         canvasRef.current.height = videoRef.current.videoHeight;
         context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-        const frameData = canvasRef.current.toDataURL("image/jpeg", 0.8); // qualité 80%
+        const frameData = canvasRef.current.toDataURL("image/jpeg", 0.8);
         if (socket.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify({ frame: frameData }));
         }
@@ -105,24 +102,23 @@ console.log(response)
 
     const intervalId = setInterval(sendFrame, 1000);
 
-    // Cleanup
     return () => {
       clearInterval(intervalId);
       socket.close();
     };
   }, []);
 
-  // Save emotion for a tweet
+  // Sauvegarder l'émotion pour un tweet
   const saveEmotion = async (tweetId, emotion) => {
     try {
-      const userId = "67d00c5e00073dd855bac0a5"; // Replace with the actual user ID
-      await axios.post("http://localhost:5001/api/emotions/emotions/", {
+      const userId = "67d00c5e00073dd855bac0a5"; // Remplacez par l'ID de l'utilisateur réel
+      await axios.post(`${url}/api/emotions/emotions/`, {
         user_id: userId,
         tweet_id: tweetId,
         emotion: emotion,
       });
     } catch (error) {
-      console.error("Error saving emotion:", error);
+      console.error("Erreur lors de la sauvegarde de l'émotion:", error);
     }
   };
 
@@ -186,7 +182,6 @@ const handleScroll = useCallback(() => {
         Fil d'actualité
       </Typography>
 
-      {/* Formulaire pour publier un tweet */}
       <NewTweet onAddTweet={addNewTweet} />
 
       {/* Affichage des tweets */}
@@ -215,7 +210,6 @@ const handleScroll = useCallback(() => {
         </Box>
       )}
 
-      {/* Emotion Analysis Section */}
       <Grid container spacing={4} sx={{ marginTop: 4 }}>
         <Grid item xs={12}>
           <Typography variant="h5" gutterBottom>
@@ -239,13 +233,7 @@ const handleScroll = useCallback(() => {
         </Grid>
       </Grid>
 
-      {/* Hidden video and canvas for capturing frames */}
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        style={{ display: "none" }} // Hide the video element
-      />
+      <video ref={videoRef} autoPlay playsInline style={{ display: "none" }} />
       <canvas ref={canvasRef} style={{ display: "none" }} />
     </Container>
   );
