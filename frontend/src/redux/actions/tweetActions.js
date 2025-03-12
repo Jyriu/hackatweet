@@ -41,12 +41,16 @@ export const fetchTweets = (page = 1, limit = 10) => async (dispatch, getState) 
 // Action pour poster un nouveau tweet
 export const postNewTweet = (tweetData) => async (dispatch) => {
   try {
-    const response = await axios.post(`${API_URL}/api/tweet/create`, tweetData, {
+    console.log("Tentative d'envoi de tweet à l'API avec données:", tweetData);
+    
+    // Modification de l'URL de l'endpoint
+    const response = await axios.post(`${API_URL}/api/tweet`, tweetData, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('token')}`
       }
     });
     
+    console.log("Réponse du serveur après création de tweet:", response.data);
     dispatch(addTweet(response.data));
     return response.data;
   } catch (error) {
