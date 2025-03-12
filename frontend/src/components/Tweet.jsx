@@ -38,19 +38,27 @@ const Tweet = ({ tweet }) => {
     if (tweet.originalTweet) {
       const fetchOriginalTweet = async () => {
         try {
-          const response = await axios.post(
-            `${url}/api/tweet/getweet/${tweet.originalTweet}`
+          const response = await axios.get(
+            `${url}/api/tweet/gettweet/${tweet.originalTweet}`
           );
-          setOriginalTweetText(response.data.text);
+          
+          console.log("Réponse de l'API pour le tweet original:", response.data); // Affiche la réponse complète de l'API
+          
+          if (response.data && response.data.text) {
+            setOriginalTweetText(response.data.text);
+          } else {
+            console.error("Le texte du tweet original n'a pas été trouvé");
+          }
         } catch (error) {
           console.error("Erreur lors de la récupération du tweet original:", error);
           setError("Erreur lors de la récupération du tweet original");
         }
       };
-
+  
       fetchOriginalTweet();
     }
-  }, [tweet.originalTweet]);
+  }, [tweet.originalTweet]);  
+
 
   const handleLike = async () => {
     if (isLiking) return;
@@ -130,10 +138,8 @@ const Tweet = ({ tweet }) => {
   return (
     <Card sx={{ marginBottom: 2, borderRadius: 2, boxShadow: 3 }}>
       <CardContent>
-        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-          {tweet.text}
-        </Typography>
-
+        <Typography variant="h6">{tweet._id}</Typography>
+        <Typography variant="body1">{tweet.text}</Typography>
         {tweet.mediaUrl && (
           <Box sx={{ marginTop: 2 }}>
             <img
