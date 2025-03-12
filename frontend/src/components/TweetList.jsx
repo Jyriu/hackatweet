@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef } from "react";
+// TweetList.js
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Grid, CircularProgress } from "@mui/material";
 import Tweet from "../components/Tweet";
 
@@ -12,6 +13,15 @@ const TweetList = ({
   emotionData,
 }) => {
   const tweetsContainerRef = useRef(null);
+  const [localTweets, setLocalTweets] = useState(tweets);
+
+  useEffect(() => {
+    setLocalTweets(tweets);
+  }, [tweets]);
+
+  const handleRetweet = (newRetweet) => {
+    setLocalTweets(prevTweets => [newRetweet, ...prevTweets]);
+  };
 
   // Handle scroll event with debouncing
   const handleScroll = useCallback(() => {
@@ -43,7 +53,7 @@ const TweetList = ({
         break;
       }
     }
-  }, [tweets, visibleTweetId, emotionData, hasMore, loading, onScroll, onSaveEmotion]);
+  }, [localTweets, visibleTweetId, emotionData, hasMore, loading, onScroll, onSaveEmotion]);
 
   // Add scroll event listener with debouncing
   useEffect(() => {
@@ -69,13 +79,13 @@ const TweetList = ({
         padding: 2,
       }}
     >
-      {loading && tweets.length === 0 ? (
+      {loading && localTweets.length === 0 ? (
         <Grid container justifyContent="center" sx={{ marginTop: 3 }}>
           <CircularProgress />
         </Grid>
       ) : (
         <Grid container spacing={2}>
-          {tweets.map((tweet) => (
+          {localTweets.map((tweet) => (
             <Grid
               item
               xs={12}
@@ -83,13 +93,13 @@ const TweetList = ({
               className="tweet-item"
               data-tweet-id={tweet._id}
               sx={{
-                backgroundColor: "#f5f8fa", // White background for each tweet
-                borderRadius: 2, // Rounded corners for tweets
-                padding: 2, // Padding inside each tweet
-                marginBottom: 2, // Space between tweets
+                backgroundColor: "#f5f8fa",
+                borderRadius: 2,
+                padding: 2,
+                marginBottom: 2,
               }}
             >
-              <Tweet tweet={tweet} />
+              <Tweet tweet={tweet} onRetweet={handleRetweet} />
             </Grid>
           ))}
         </Grid>

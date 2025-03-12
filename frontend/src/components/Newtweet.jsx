@@ -12,7 +12,8 @@ import {
 } from "@mui/material";
 import AddPhotoAlternateIcon from "@mui/icons-material/AddPhotoAlternate";
 import InsertLinkIcon from "@mui/icons-material/InsertLink";
-import axios from "axios";
+
+import { createTweet } from "../services/api";
 
 const NewTweet = ({ onAddTweet }) => {
   const [tweetContent, setTweetContent] = useState("");
@@ -44,31 +45,10 @@ const NewTweet = ({ onAddTweet }) => {
     }
 
     try {
-      const formData = new FormData();
-      formData.append("content", tweetContent);
-      if (selectedFile) {
-        formData.append("media", selectedFile);
-      }
-      
-      if (link) {
-        formData.append("link", link);
-      }
+      const newTweet = await createTweet(tweetContent, selectedFile, link);
+      onAddTweet(newTweet); // Notify parent component about the new tweet
 
-      const hashtags = tweetContent.match(/#\w+/g) || [];
-      const mentions = tweetContent.match(/@\w+/g) || [];
-      
-      formData.append("hashtags", JSON.stringify(hashtags.map(tag => tag.slice(1))));
-      formData.append("mentions", JSON.stringify(mentions.map(mention => mention.slice(1))));
-
-      const response = await axios.post("http://localhost:5001/api/tweet/tweets", formData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      onAddTweet(response.data);
-      
+      // Reset fields
       setTweetContent("");
       setSelectedFile(null);
       setPreviewUrl("");
@@ -81,7 +61,6 @@ const NewTweet = ({ onAddTweet }) => {
       setError("Failed to post tweet. Please try again.");
     }
   };
-
   return (
     <Card sx={{ marginBottom: 2, padding: 2 }}>
       <CardContent>
