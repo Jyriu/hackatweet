@@ -1,4 +1,3 @@
-// TweetList.js
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Grid, CircularProgress } from "@mui/material";
 import Tweet from "../components/Tweet";
@@ -23,14 +22,20 @@ const TweetList = ({
     setLocalTweets(prevTweets => [newRetweet, ...prevTweets]);
   };
 
-  // Handle scroll event with debouncing
+  const handleUpdateTweet = (updatedTweet) => {
+    setLocalTweets(prevTweets =>
+      prevTweets.map(tweet =>
+        tweet._id === updatedTweet._id ? updatedTweet : tweet
+      )
+    );
+  };
+
   const handleScroll = useCallback(() => {
     if (!tweetsContainerRef.current) return;
 
     const container = tweetsContainerRef.current;
     const { scrollTop, scrollHeight, clientHeight } = container;
 
-    // Check if we're at the end of the list (with a margin)
     if (
       scrollTop + clientHeight >= scrollHeight - 100 &&
       hasMore &&
@@ -39,7 +44,6 @@ const TweetList = ({
       onScroll();
     }
 
-    // Track the first fully visible tweet
     const tweetsElements = container.querySelectorAll(".tweet-item");
     for (let i = 0; i < tweetsElements.length; i++) {
       const tweet = tweetsElements[i];
@@ -55,7 +59,6 @@ const TweetList = ({
     }
   }, [localTweets, visibleTweetId, emotionData, hasMore, loading, onScroll, onSaveEmotion]);
 
-  // Add scroll event listener with debouncing
   useEffect(() => {
     const container = tweetsContainerRef.current;
     if (!container) return;
@@ -99,7 +102,11 @@ const TweetList = ({
                 marginBottom: 2,
               }}
             >
-              <Tweet tweet={tweet} onRetweet={handleRetweet} />
+              <Tweet 
+                tweet={tweet} 
+                onRetweet={handleRetweet} 
+                onUpdateTweet={handleUpdateTweet}
+              />
             </Grid>
           ))}
         </Grid>

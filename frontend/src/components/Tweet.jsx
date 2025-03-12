@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -14,9 +14,11 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import RepeatIcon from "@mui/icons-material/Repeat";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import RetweetDialog from "./RetweetDialog";
+import { likeTweet } from "../services/api"; // Import the API function
 
-const Tweet = ({ tweet, onRetweet }) => {
+const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
   const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(tweet.userLikes ? tweet.userLikes.length : 0);
   const [retweeted, setRetweeted] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState([]);
@@ -25,9 +27,20 @@ const Tweet = ({ tweet, onRetweet }) => {
 
   const retweetCount = tweet.retweets ? tweet.retweets.length : 0;
 
-  const handleLike = () => {
-    setLiked(!liked);
-    // TODO: Implement like functionality with backend
+  useEffect(() => {
+    const currentUserId = localStorage.getItem("userId");
+    setLiked(tweet.userLikes.includes(currentUserId));
+  }, [tweet.userLikes]);
+
+  const handleLike = async () => {
+    try {
+      const response = await likeTweet(tweet._id);
+      setLiked(!liked);
+      setLikeCount(response.tweet.userLikes.length);
+      onUpdateTweet(response.tweet);
+    } catch (error) {
+      console.error("Error liking tweet:", error);
+    }
   };
 
   const handleRetweet = () => {
@@ -51,7 +64,6 @@ const Tweet = ({ tweet, onRetweet }) => {
     }
   };
 
-  // Render hashtags
   const renderHashtags = (hashtags) => {
     return hashtags.map((hashtag, index) => (
       <Typography
@@ -65,7 +77,6 @@ const Tweet = ({ tweet, onRetweet }) => {
     ));
   };
 
-  // Render retweeted content if the tweet is a retweet
   const renderOriginalTweet = (originalTweet) => {
     return (
       <Box
@@ -99,7 +110,7 @@ const Tweet = ({ tweet, onRetweet }) => {
         )}
         {originalTweet.mediaUrl && (
           <img
-            src={originalTweet.mediaUrl}
+            src={`http://localhost:5001${originalTweet.mediaUrl}`}
             alt="Original Tweet Media"
             style={{ width: "100%", borderRadius: "8px", marginTop: "10px" }}
           />
@@ -111,7 +122,6 @@ const Tweet = ({ tweet, onRetweet }) => {
   return (
     <Card sx={{ marginBottom: 2, padding: 2 }}>
       <CardContent>
-        {/* User Info */}
         <Box display="flex" alignItems="center" mb={2}>
           <Avatar src={tweet.author.profilePicture} alt={tweet.author.username} />
           <Box ml={2}>
@@ -122,15 +132,12 @@ const Tweet = ({ tweet, onRetweet }) => {
           </Box>
         </Box>
 
-        {/* Tweet Content */}
         <Typography variant="body1">{tweet.text}</Typography>
 
-        {/* Hashtags */}
         {tweet.hashtags && (
           <Box sx={{ marginTop: "8px" }}>{renderHashtags(tweet.hashtags)}</Box>
         )}
 
-        {/* Link */}
         {tweet.link && (
           <Typography
             variant="body2"
@@ -143,39 +150,34 @@ const Tweet = ({ tweet, onRetweet }) => {
           </Typography>
         )}
 
-        {/* Media */}
         {tweet.mediaUrl && (
           <img
-          src={`http://localhost:5001${tweet.mediaUrl}`} 
+            src={`http://localhost:5001${tweet.mediaUrl}`}
             alt="Tweet Media"
             style={{ width: "100%", borderRadius: "8px", marginTop: "10px" }}
           />
         )}
 
-        {/* Original Tweet (if retweeted) */}
         {tweet.originalTweet && renderOriginalTweet(tweet.originalTweet)}
 
-        {/* Actions */}
         <Box sx={{ mt: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          {/* Like Button */}
-          <IconButton onClick={handleLike} color={liked ? "error" : "default"}>
-            <FavoriteIcon />
-          </IconButton>
+          <Badge badgeContent={likeCount} color="error">
+            <IconButton onClick={handleLike} color={liked ? "error" : "default"}>
+              <FavoriteIcon />
+            </IconButton>
+          </Badge>
 
-          {/* Retweet Button with Count */}
           <Badge badgeContent={retweetCount} color="primary">
             <IconButton onClick={handleRetweet} color={retweeted ? "success" : "default"}>
               <RepeatIcon />
             </IconButton>
           </Badge>
 
-          {/* Comment Button */}
           <IconButton onClick={() => setShowComments(!showComments)} color="primary">
             <ChatBubbleOutlineIcon />
           </IconButton>
         </Box>
 
-        {/* Comments Section */}
         {showComments && (
           <Box mt={2}>
             {comments.map((comment, index) => (
@@ -207,7 +209,6 @@ const Tweet = ({ tweet, onRetweet }) => {
           </Box>
         )}
 
-        {/* Retweet Dialog */}
         <RetweetDialog
           open={openRetweetDialog}
           onClose={handleCloseRetweetDialog}

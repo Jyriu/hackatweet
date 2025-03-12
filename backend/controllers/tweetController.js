@@ -402,7 +402,7 @@ exports.deleteAllTweets = async (req, res) => {
 // Ajouter ou retirer un like à un tweet
 exports.likeTweet = async (req, res) => {
     try {
-        const tweet = await Tweet.findById(req.params.id);
+        let tweet = await Tweet.findById(req.params.id);
         const user = await User.findById(req.user.id);
 
         if (!tweet) {
@@ -413,13 +413,9 @@ exports.likeTweet = async (req, res) => {
         if (tweet.userLikes.includes(req.user.id)) {
             // Retirer le like
             tweet.userLikes = tweet.userLikes.filter(userId => userId.toString() !== req.user.id);
-            await tweet.save();
-            //console.log(`✅ [Tweet] Like retiré par ${req.user.id} pour le tweet ${tweet._id}`);
-            return res.json({ message: 'Like retiré', tweet });
         } else {
             // Ajouter le like
             tweet.userLikes.push(req.user.id);
-            await tweet.save();
 
             // Si l'utilisateur qui like n'est pas l'auteur du tweet, envoyer une notification
             if (tweet.author.toString() !== req.user.id) {
@@ -431,18 +427,38 @@ exports.likeTweet = async (req, res) => {
                     contentModel: 'Tweet',
                     read: false
                 });
-                //console.log(`✅ [Tweet] Like + notification envoyée de ${req.user.id} à ${tweet.author} pour le tweet ${tweet._id}`);
-            } else {
-               // console.log(`✅ [Tweet] Like sans notification (auteur = liker) pour le tweet ${tweet._id}`);
             }
-
-            return res.json({ message: 'Tweet liké', tweet });
         }
+
+        await tweet.save();
+
+        // Populate the tweet with necessary data
+        tweet = await Tweet.findById(tweet._id)
+            .populate('author', 'username name profilePicture')
+            .populate({
+                path: 'originalTweet',
+                populate: {
+                    path: 'author',
+                    select: 'username name profilePicture'
+                }
+            })
+            .populate('retweets')
+            .lean();
+
+        // Add any additional fields that might be needed
+        tweet.isLiked = tweet.userLikes.includes(req.user.id);
+        tweet.likeCount = tweet.userLikes.length;
+        tweet.retweetCount = tweet.retweets.length;
+
+        const message = tweet.userLikes.includes(req.user.id) ? 'Tweet liké' : 'Like retiré';
+        res.json({ message, tweet });
+
     } catch (error) {
         console.error(`📛 [Tweet] Erreur lors du like: ${error.message}`, error);
         res.status(500).json({ message: 'Erreur lors de l\'ajout du like', error: error.message });
     }
 };
+
 
 // Retweeter un tweet
 exports.retweet = async (req, res) => {
