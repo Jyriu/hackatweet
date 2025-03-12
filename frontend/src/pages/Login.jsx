@@ -1,90 +1,175 @@
-import React, { useState, useContext } from "react";
-import axios from "axios";
-import {
-  Container,
-  TextField,
-  Button,
-  Card,
-  CardContent,
+import React, { useState } from "react";
+import { 
+  TextField, 
+  Button, 
+  InputAdornment, 
+  IconButton, 
+  Alert, 
+  CircularProgress, 
   Typography,
-  Alert,
+  Box,
+  Divider,
+  Link
 } from "@mui/material";
-import { UserContext } from "../context/UserContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link as RouterLink } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import AuthLayout from "../components/AuthLayout";
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import EmailIcon from '@mui/icons-material/Email';
+import LockIcon from '@mui/icons-material/Lock';
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(null);
-  const { setUser } = useContext(UserContext);
+  const [showPassword, setShowPassword] = useState(false);
+  const { login, error, loading } = useAuth();
   const navigate = useNavigate();
   const url = import.meta.env.VITE_BACKEND_URL;
 
-  const handleLogin = async () => {
+  const handleLogin = async (e) => {
+    e?.preventDefault();
+    
+    if (!email || !password) {
+      return; // Simple validation
+    }
+    
     try {
-      // Envoi de la requête POST au backend
-      const response = await axios.post(url + "/api/auth/login", {
-        email,
-        password,
-      });
-
-      // Récupération de la réponse
-      const { token, user } = response.data;
-
-      // Sauvegarde du token JWT dans le localStorage
-      localStorage.setItem("token", token);
-
-      // Mise à jour du contexte utilisateur
-      setUser(user);
-
-      // Redirection vers la page d'accueil
-      navigate("/");
+      console.log("Tentative de connexion...");
+      await login({ email, password });
+      console.log("Connexion réussie, redirection vers /");
+      
+      // Redirection vers la page d'accueil (forcée avec un délai)
+      setTimeout(() => {
+        console.log("Redirection forcée");
+        navigate("/", { replace: true });
+      }, 100);
     } catch (err) {
-      setError(err.response?.data?.message || "Erreur lors de la connexion");
+      // L'erreur est déjà gérée par le hook useAuth
+      console.error("Erreur de connexion:", err);
     }
   };
 
   return (
-    <Container maxWidth="xs" sx={{ marginTop: 5 }}>
-      <Card sx={{ padding: 3 }}>
-        <CardContent>
-          <Typography variant="h5" textAlign="center" color="primary">
-            Connexion
-          </Typography>
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-          <TextField
-            fullWidth
-            label="Adresse Email"
-            margin="normal"
-            variant="outlined"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <TextField
-            fullWidth
-            label="Mot de passe"
-            type="password"
-            margin="normal"
-            variant="outlined"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <Button
-            fullWidth
-            variant="contained"
-            color="primary"
-            sx={{ marginTop: 2 }}
-            onClick={handleLogin}
+    <AuthLayout 
+      title="Bienvenue" 
+      subtitle="Heureux de vous revoir ! Connectez-vous pour continuer"
+    >
+      <form onSubmit={handleLogin}>
+        {error && (
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mb: 3, 
+              borderRadius: 2,
+              fontSize: '0.9rem'
+            }}
           >
-            Se connecter
-          </Button>
-        </CardContent>
-      </Card>
-    </Container>
+            {error}
+          </Alert>
+        )}
+        
+        <TextField
+          fullWidth
+          label="Adresse Email"
+          type="email"
+          margin="normal"
+          variant="outlined"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={loading}
+          required
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <EmailIcon sx={{ color: 'primary.main' }} />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ mb: 2 }}
+        />
+        
+        <TextField
+          fullWidth
+          label="Mot de passe"
+          type={showPassword ? "text" : "password"}
+          margin="normal"
+          variant="outlined"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={loading}
+          required
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <LockIcon sx={{ color: 'primary.main' }} />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={() => setShowPassword(!showPassword)}
+                  edge="end"
+                >
+                  {showPassword ? (
+                    <VisibilityOffIcon />
+                  ) : (
+                    <VisibilityIcon />
+                  )}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+          sx={{ mb: 3 }}
+        />
+        
+        <Button 
+          fullWidth 
+          variant="contained" 
+          color="primary" 
+          type="submit"
+          size="large"
+          disabled={loading || !email || !password}
+          sx={{ 
+            py: 1.5,
+            mb: 2
+          }} 
+        >
+          {loading ? (
+            <CircularProgress size={24} color="inherit" />
+          ) : (
+            "Se connecter"
+          )}
+        </Button>
+        
+        <Divider sx={{ my: 3 }}>
+          <Typography variant="body2" color="text.secondary">
+            OU
+          </Typography>
+        </Divider>
+        
+        <Box sx={{ textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Vous n'avez pas encore de compte ?
+          </Typography>
+          <Link 
+            component={RouterLink} 
+            to="/register" 
+            variant="body1"
+            sx={{ 
+              color: 'primary.main',
+              fontWeight: 500,
+              textDecoration: 'none',
+              '&:hover': {
+                textDecoration: 'underline'
+              }
+            }}
+          >
+            Inscrivez-vous
+          </Link>
+        </Box>
+      </form>
+    </AuthLayout>
   );
 };
 
