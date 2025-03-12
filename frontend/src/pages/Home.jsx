@@ -22,6 +22,9 @@ import { toggleUserSetting } from "../redux/actions/userActions";
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 
+// URL de l'API backend
+const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+
 const Home = () => {
   const { 
     tweets, 
@@ -44,22 +47,34 @@ const Home = () => {
   const [showCameraDialog, setShowCameraDialog] = useState(false); // État pour afficher/masquer la boîte de dialogue
   const [cameraError, setCameraError] = useState(null); // État pour stocker les erreurs de caméra
 
+  // Afficher la boîte de dialogue si l'utilisateur n'a pas encore choisi
   useEffect(() => {
-    // Si l'utilisateur n'a pas encore défini de préférence pour la caméra, afficher la boîte de dialogue
     if (user && user.cameraOn === undefined) {
       setShowCameraDialog(true);
+    } else if (user && user.cameraOn) {
+      // Si l'utilisateur a déjà accepté, initialiser la caméra
+      initCamera();
     }
   }, [user]);
-  
-  // Fonction pour gérer l'autorisation de la caméra
+
+  // Function to handle camera permission
   const handleCameraPermission = async (allow) => {
     try {
-      // Mettre à jour la préférence de caméra dans le backend
-      await dispatch(toggleUserSetting('cameraOn')).unwrap();
-      
+      // Mettre à jour la préférence dans le backend
+      const response = await axios.put(
+        `${API_URL}/api/users/toggle-setting/cameraOn`,
+        { value: allow }, // Envoyer explicitement la valeur plutôt que de basculer
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+
+      // Fermer le dialogue
       setShowCameraDialog(false);
       
-      // Si l'utilisateur a autorisé la caméra, initialiser la caméra
+      // Si l'utilisateur a accepté, initialiser la caméra
       if (allow) {
         initCamera();
       }
@@ -78,7 +93,7 @@ const Home = () => {
     }
   };
 
-  // Initialize camera and emotion analysis
+  // Fonction pour initialiser la caméra - sera appelée une fois que l'utilisateur accepte
   const initCamera = async () => {
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -98,38 +113,29 @@ const Home = () => {
     }
   };
 
-  // Effect pour initialiser la caméra si l'utilisateur l'a autorisée
+  // Nettoyage à la déconnexion
   useEffect(() => {
-    if (user && user.cameraOn) {
-      initCamera();
-    }
-    
-    // Cleanup function
     return () => {
-      // Arrêter l'intervalle d'analyse d'émotions
       if (emotionIntervalRef.current) {
         clearInterval(emotionIntervalRef.current);
         emotionIntervalRef.current = null;
       }
       
-      // Arrêter la caméra
       if (videoRef.current && videoRef.current.srcObject) {
         const tracks = videoRef.current.srcObject.getTracks();
         tracks.forEach(track => track.stop());
       }
     };
-  }, [user]);
+  }, []);
 
   // Réagir aux changements de tweet visible
   useEffect(() => {
-    // Si le tweet visible change et que nous avons des données d'émotion,
-    // enregistrer l'émotion pour le nouveau tweet
     if (visibleTweetId && emotionData?.dominant_emotion) {
       saveEmotion(visibleTweetId, emotionData.dominant_emotion);
     }
   }, [visibleTweetId, emotionData]);
 
-  // Fonction pour capturer et analyser les émotions
+  // Fonction pour analyser les émotions
   const analyzeEmotion = async () => {
     if (!videoRef.current || !canvasRef.current || !visibleTweetId) return;
     
@@ -139,13 +145,10 @@ const Home = () => {
       context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
       
       // Convertir le canvas en données d'image
-      const frameData = canvasRef.current.toDataURL('image/jpeg').split(',')[1]; // Récupérer uniquement les données base64
+      const frameData = canvasRef.current.toDataURL('image/jpeg').split(',')[1];
       
-      // Créer un FormData pour envoyer les images à l'API
+      // Préparer les données à envoyer
       const formData = new FormData();
-      
-      // Créer 3 captures d'image pour l'API (elle en demande 3)
-      // On utilise la même image trois fois pour simplifier
       const blob1 = await fetch(`data:image/jpeg;base64,${frameData}`).then(res => res.blob());
       const blob2 = await fetch(`data:image/jpeg;base64,${frameData}`).then(res => res.blob());
       const blob3 = await fetch(`data:image/jpeg;base64,${frameData}`).then(res => res.blob());
@@ -154,17 +157,15 @@ const Home = () => {
       formData.append('screenshot2', blob2, 'capture2.jpg');
       formData.append('screenshot3', blob3, 'capture3.jpg');
       
-      // Appel direct à l'API d'analyse d'émotions
-      const response = await axios.post('http://localhost:5001/api/analyze-images', formData, {
+      // Appel à l'API d'analyse
+      const response = await axios.post(`${API_URL}/api/analyze-images`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       });
       
-      // Extraire et traiter les données d'émotions
+      // Traiter les résultats
       const result = response.data;
-      
-      // Si nous avons des résultats, mettre à jour l'état
       if (result.results && result.results.length > 0) {
         const firstResult = result.results[0];
         const emotionResult = {
@@ -174,7 +175,6 @@ const Home = () => {
         
         setEmotionData(emotionResult);
         
-        // Si nous avons un tweet visible, enregistrer l'émotion
         if (visibleTweetId) {
           saveEmotion(visibleTweetId, emotionResult.dominant_emotion);
         }
@@ -184,7 +184,7 @@ const Home = () => {
     }
   };
 
-  // Save emotion to the backend
+  // Sauvegarder l'émotion
   const saveEmotion = async (tweetId, emotion) => {
     try {
       await saveEmotionForTweet(tweetId, emotion);
@@ -193,7 +193,7 @@ const Home = () => {
     }
   };
 
-  // Function to handle intersection observer callbacks
+  // Gérer l'intersection observer pour le défilement infini
   const handleObserver = useCallback((entries) => {
     const target = entries[0];
     if (target.isIntersecting && hasMore && !loading) {
@@ -201,7 +201,7 @@ const Home = () => {
     }
   }, [hasMore, loading, loadMoreTweets]);
 
-  // Set up intersection observer for infinite scrolling
+  // Configurer l'intersection observer
   useEffect(() => {
     const option = {
       root: null,
@@ -296,7 +296,7 @@ const Home = () => {
         )}
       </Grid>
 
-      {/* Boîte de dialogue pour demander l'autorisation de la caméra */}
+      {/* Dialogue pour demander l'autorisation */}
       <Dialog
         open={showCameraDialog}
         aria-labelledby="camera-dialog-title"
