@@ -18,8 +18,12 @@ const RepliesSchema = new Schema({
   }],
   idTweet: {
     type: Schema.Types.ObjectId,
-    ref: 'Tweet',
-    required: true
+    ref: 'Tweet'
+    // required: true
+  },
+  idComment: {
+    type: Schema.Types.ObjectId,
+    ref: 'Replies'
   },
   date: {
     type: Date,
