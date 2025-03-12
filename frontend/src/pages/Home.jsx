@@ -3,6 +3,7 @@ import { Container, Typography, Box, Alert } from "@mui/material";
 import { useTweets } from "../hooks/useTweets";
 import NewTweet from "../components/NewTweet";
 import { useAuth } from "../hooks/useAuth";
+import axios from "axios";
 
 const Home = () => {
   console.log("Rendu du composant Home - Test avec NewTweet simplifié");
@@ -28,15 +29,15 @@ const Home = () => {
         return;
       }
       
-      // Ajouter des champs requis selon l'API
-      const enrichedTweetData = {
-        ...newTweetData,
-        user: user.id, // Ajouter l'ID de l'utilisateur
+      // Les hashtags sont extraits automatiquement côté serveur
+      const simplifiedTweetData = {
+        content: newTweetData.content,
+        // On pourrait ajouter mediaUrl si on avait des médias
       };
       
-      console.log("Données enrichies:", enrichedTweetData);
+      console.log("Données simplifiées pour l'API:", simplifiedTweetData);
       
-      const result = await createTweet(enrichedTweetData);
+      const result = await createTweet(simplifiedTweetData);
       console.log("Résultat de la création:", result);
       setTweetError(null);
     } catch (error) {

@@ -39,12 +39,25 @@ export const fetchTweets = (page = 1, limit = 10) => async (dispatch, getState) 
 };
 
 // Action pour poster un nouveau tweet
-export const postNewTweet = (tweetData) => async (dispatch) => {
+export const postNewTweet = (tweetData) => async (dispatch, getState) => {
   try {
     console.log("Tentative d'envoi de tweet à l'API avec données:", tweetData);
     
-    // Modification de l'URL de l'endpoint
-    const response = await axios.post(`${API_URL}/api/tweet`, tweetData, {
+    // Examinons la structure d'un tweet existant pour comprendre le format
+    const existingTweets = getState().tweets;
+    if (existingTweets && existingTweets.length > 0) {
+      console.log("Structure d'un tweet existant:", existingTweets[0]);
+    }
+
+    // Les hashtags sont extraits automatiquement côté serveur
+    const adaptedData = {
+      text: tweetData.content,
+      mediaUrl: tweetData.mediaUrl || null
+    };
+    
+    console.log("Données adaptées au format du contrôleur backend:", adaptedData);
+
+    const response = await axios.post(`${API_URL}/api/tweet/createTweet`, adaptedData, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('token')}`
       }
