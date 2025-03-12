@@ -286,7 +286,7 @@ global.sendNotification = sendNotification;
 
 // Connexion à MongoDB puis démarrage du serveur
 mongoose
-  .connect(process.env.MONGO_URI)
+  .connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('Connecté à MongoDB');
     //createTweets()
