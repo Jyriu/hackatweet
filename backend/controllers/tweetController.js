@@ -468,7 +468,8 @@ exports.retweet = async (req, res) => {
         if (!originalTweet) {
             return res.status(404).json({ message: 'Tweet non trouvé' });
         }
-        const newTweet = new Tweet({
+        
+        let newTweet = new Tweet({
             text: text,
             mediaUrl: mediaUrl,
             author: req.user.id,
@@ -478,6 +479,7 @@ exports.retweet = async (req, res) => {
             originalTweet: originalTweet._id,
             date: new Date()
         });
+        
         await newTweet.save();
         originalTweet.retweets.push(newTweet.id);
         await originalTweet.save();
@@ -494,12 +496,31 @@ exports.retweet = async (req, res) => {
             });
         }
 
+        // Populate the new tweet with necessary data
+        newTweet = await Tweet.findById(newTweet._id)
+            .populate('author', 'username name profilePicture')
+            .populate({
+                path: 'originalTweet',
+                populate: {
+                    path: 'author',
+                    select: 'username name profilePicture'
+                }
+            })
+            .populate('retweets')
+            .lean();
+
+        // Add additional fields that might be needed
+        newTweet.isLiked = false; // The new tweet has just been created, so it's not liked by the user
+        newTweet.likeCount = 0;
+        newTweet.retweetCount = newTweet.retweets.length;
+
         res.status(201).json(newTweet);
     } catch (error) {
         console.error('Erreur lors du retweet:', error);
         res.status(500).json({ message: 'Erreur lors du retweet', error: error.message });
     }
 };
+
 
 // Ajouter ou retirer un signet à un tweet
 exports.bookmarkTweet = async (req, res) => {
