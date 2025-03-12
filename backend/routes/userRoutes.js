@@ -53,6 +53,6 @@ router.get('/suggested-users', auth, userController.getSuggestedUsers);
 // Route générique pour basculer les paramètres utilisateur (camera, notifications, etc.)
 router.put('/toggle/:setting', auth, userController.toggleUserSetting);
 // Route utilisées dans la création d'un tweet
-router.get("/api/users/search",auth, userController.searchUsers);
-router.get("/api/users/by-username/:username",auth, userController.getUserByUsername);
+router.get("/search",auth, userController.searchUsers);
+router.get("/by-username/:username",auth, userController.getUserByUsername);
 module.exports = router;

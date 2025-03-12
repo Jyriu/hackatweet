@@ -1,4 +1,5 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 import axios from "axios";
 import {
   Container,
@@ -13,10 +14,9 @@ import {
   TextField,
   CircularProgress,
 } from "@mui/material";
-import { UserContext } from "../context/UserContext";
 
 const Profile = () => {
-  const { user, setUser } = useContext(UserContext);
+  const user = useSelector((state) => state.user.currentUser);
   const [profileData, setProfileData] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [bio, setBio] = useState("");
@@ -24,12 +24,18 @@ const Profile = () => {
   const [bannerFile, setBannerFile] = useState(null);
   const [error, setError] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
-  const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
-  // Récupération du profil via GET /api/users/profile/:username
+  const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
+
+  // Récupération du profil via GET /api/users/by-username/:username avec le token dans les headers
   useEffect(() => {
     if (!user) return;
+    const token = localStorage.getItem("token");
     axios
-      .get(`${API_URL}/api/users/profile/${user.username}`)
+      .get(`${API_URL}/api/users/by-username/${user.username}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
       .then((res) => {
         console.log("Profil récupéré :", res.data);
         setProfileData(res.data);
@@ -74,7 +80,7 @@ const Profile = () => {
       const token = localStorage.getItem("token");
       console.log("Envoi de la mise à jour avec token:", token);
       const res = await axios.put(
-        `${API_URL}api/users/profile`,
+        `${API_URL}/api/users/profile`,
         formData,
         {
           headers: {
@@ -85,7 +91,7 @@ const Profile = () => {
       );
       console.log("Réponse de la mise à jour :", res.data);
       setProfileData(res.data.user);
-      setUser(res.data.user);
+      // Optionnel : mettre à jour l'utilisateur dans Redux via une action
       setIsEditing(false);
       setIsUpdating(false);
     } catch (err) {
@@ -153,11 +159,7 @@ const Profile = () => {
                 onChange={(e) => setBio(e.target.value)}
                 margin="normal"
               />
-              <Button
-                variant="outlined"
-                component="label"
-                sx={{ mr: 2, mt: 1 }}
-              >
+              <Button variant="outlined" component="label" sx={{ mr: 2, mt: 1 }}>
                 Choisir une photo de profil
                 <input
                   type="file"
@@ -166,11 +168,7 @@ const Profile = () => {
                   onChange={(e) => setPhotoFile(e.target.files[0])}
                 />
               </Button>
-              <Button
-                variant="outlined"
-                component="label"
-                sx={{ mr: 2, mt: 1 }}
-              >
+              <Button variant="outlined" component="label" sx={{ mr: 2, mt: 1 }}>
                 Choisir une bannière
                 <input
                   type="file"
@@ -197,8 +195,7 @@ const Profile = () => {
             Historique des Tweets
           </Typography>
           <Typography variant="body2">
-            La fonctionnalité d'historique des tweets est temporairement
-            désactivée.
+            La fonctionnalité d'historique des tweets est temporairement désactivée.
           </Typography>
         </CardContent>
       </Card>
