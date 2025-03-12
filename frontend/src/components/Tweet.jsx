@@ -20,12 +20,11 @@ const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(tweet.userLikes ? tweet.userLikes.length : 0);
   const [retweeted, setRetweeted] = useState(false);
+  const [localRetweetCount, setLocalRetweetCount] = useState(tweet.retweets ? tweet.retweets.length : 0);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [openRetweetDialog, setOpenRetweetDialog] = useState(false);
-
-  const retweetCount = tweet.retweets ? tweet.retweets.length : 0;
 
   useEffect(() => {
     const currentUserId = localStorage.getItem("userId");
@@ -53,6 +52,7 @@ const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
 
   const handleRetweetSubmit = (newRetweet) => {
     setRetweeted(true);
+    setLocalRetweetCount(prevCount => prevCount + 1);
     onRetweet(newRetweet);
   };
 
@@ -167,7 +167,7 @@ const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
             </IconButton>
           </Badge>
 
-          <Badge badgeContent={retweetCount} color="primary">
+          <Badge badgeContent={localRetweetCount} color="primary">
             <IconButton onClick={handleRetweet} color={retweeted ? "success" : "default"}>
               <RepeatIcon />
             </IconButton>
