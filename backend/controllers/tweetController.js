@@ -62,10 +62,10 @@ exports.createTweet = async (req, res) => {
 };
 
 
-// Récupérer tous les tweets
+// Récupérer tous les tweets triés par date
 exports.getTweets = async (req, res) => {
     try {
-        const tweets = await Tweet.find().populate('author', 'username');
+        const tweets = await Tweet.find().populate('author', 'username').sort({ date: -1 });
         res.json(tweets);
     } catch (error) {
         console.error('Erreur lors de la récupération des tweets:', error);
