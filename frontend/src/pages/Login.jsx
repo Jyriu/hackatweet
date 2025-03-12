@@ -14,11 +14,7 @@ const Login = () => {
   const handleLogin = async () => {
     try {
       // Envoi de la requête POST au backend
-<<<<<<< HEAD
-      const response = await axios.post("http://localhost:5000/api/auth/login", {
-=======
       const response = await axios.post("http://localhost:5001/api/auth/login", {
->>>>>>> origin/feat-ai-implementation-frontend-backend
         email,
         password,
       });

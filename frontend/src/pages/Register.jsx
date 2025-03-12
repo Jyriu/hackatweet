@@ -27,11 +27,7 @@ const Register = () => {
     setError(null);
 
     try {
-<<<<<<< HEAD
-      const response = await axios.post("http://localhost:5000/api/auth/register", formData);
-=======
       const response = await axios.post("http://localhost:5001/api/auth/register", formData);
->>>>>>> origin/feat-ai-implementation-frontend-backend
 
       // Récupération du token et de l'utilisateur renvoyé par le backend
       const { token, user } = response.data;
