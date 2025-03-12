@@ -4,7 +4,6 @@ const Schema = mongoose.Schema;
 const TweetSchema = new Schema({
   text: {
     type: String,
-    required: true,
     maxlength: 280
   },
   mediaUrl: {
@@ -16,6 +15,10 @@ const TweetSchema = new Schema({
     required: true
   },
   userLikes: [{
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  usersave: [{
     type: Schema.Types.ObjectId,
     ref: 'User'
   }],
