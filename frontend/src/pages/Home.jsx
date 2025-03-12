@@ -131,64 +131,89 @@ const Home = () => {
   }, [handleScroll, loading]);
 
   return (
-    <Container maxWidth="lg" sx={{ marginTop: 4 }}>
-      <Typography variant="h4" color="primary" gutterBottom>
-        Fil d'actualité
-      </Typography>
+    <Box
+      sx={{
+        height: "100vh",
+        backgroundColor: "#f5f8fa", // Background color for the entire page
+      }}
+    >
+      {/* Bigger Container */}
+      <Container
+        maxWidth="md"
+        sx={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          padding: 0,
+          backgroundColor: "#f5f8fa", // Same background color
+        }}
+      >
+        {/* Header */}
+        <Box
+          sx={{
+            backgroundColor: "#f5f8fa",
+            borderBottom: "1px solid #e0e0e0",
+            padding: 2,
+            zIndex: 1000,
+          }}
+        >
+          <Typography variant="h5" fontWeight="bold" color="#545f69">
+            Fil d'actualité
+          </Typography>
+        </Box>
 
-      <NewTweet onAddTweet={addNewTweet} />
+        {/* New Tweet Section */}
+        <Box
+          sx={{
+            backgroundColor: "#f5f8fa",
+            borderBottom: "1px solid #e0e0e0",
+            padding: 2,
+          }}
+        >
+          <NewTweet onAddTweet={addNewTweet} />
+        </Box>
 
-      {loading && tweets.length === 0 ? (
-        <Grid container justifyContent="center" sx={{ marginTop: 3 }}>
-          <CircularProgress />
-        </Grid>
-      ) : (
+        {/* Tweets List - Scrollable Section */}
         <Box
           ref={tweetsContainerRef}
           sx={{
-            height: "60vh",
+            flex: 1,
             overflowY: "auto",
-            border: "1px solid #ddd",
-            borderRadius: "4px",
-            padding: "10px",
+            padding: 2,
           }}
         >
-          <Grid container spacing={2}>
-            {tweets.map((tweet) => (
-              <Grid item xs={12} key={tweet._id} className="tweet-item" data-tweet-id={tweet._id}>
-                <Tweet tweet={tweet} />
-              </Grid>
-            ))}
-          </Grid>
+          {loading && tweets.length === 0 ? (
+            <Grid container justifyContent="center" sx={{ marginTop: 3 }}>
+              <CircularProgress />
+            </Grid>
+          ) : (
+            <Grid container spacing={2}>
+              {tweets.map((tweet) => (
+                <Grid
+                  item
+                  xs={12}
+                  key={tweet._id}
+                  className="tweet-item"
+                  data-tweet-id={tweet._id}
+                  sx={{
+                    backgroundColor: "#f5f8fa", // White background for each tweet
+                    borderRadius: 2, // Rounded corners for tweets
+                    padding: 2, // Padding inside each tweet
+                    marginBottom: 2, // Space between tweets
+                  }}
+                >
+                  <Tweet tweet={tweet} />
+                </Grid>
+              ))}
+            </Grid>
+          )}
         </Box>
-      )}
 
-      <Grid container spacing={4} sx={{ marginTop: 4 }}>
-        <Grid item xs={12}>
-          <Typography variant="h5" gutterBottom>
-            Résultats d'analyse des émotions
-          </Typography>
-          <div
-            style={{
-              backgroundColor: "#f2f2f2",
-              padding: "10px",
-              overflowY: "auto",
-              height: "300px",
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {emotionData ? (
-              <pre>{JSON.stringify(emotionData, null, 2)}</pre>
-            ) : (
-              <Typography variant="body1">En attente des résultats d'analyse...</Typography>
-            )}
-          </div>
-        </Grid>
-      </Grid>
-
-      <video ref={videoRef} autoPlay playsInline style={{ display: "none" }} />
-      <canvas ref={canvasRef} style={{ display: "none" }} />
-    </Container>
+        {/* Hidden Video and Canvas Elements */}
+        <video ref={videoRef} autoPlay playsInline style={{ display: "none" }} />
+        <canvas ref={canvasRef} style={{ display: "none" }} />
+      </Container>
+    </Box>
   );
 };
 
