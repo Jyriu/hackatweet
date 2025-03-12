@@ -9,7 +9,6 @@ import { useNavigate } from "react-router-dom";
 const Home = () => {
   const navigate = useNavigate();
   
-  // États
   const [tweets, setTweets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(
