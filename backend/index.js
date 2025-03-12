@@ -19,15 +19,18 @@ const User = mongoose.model('User');
 const Notification = mongoose.model('Notification');
 const Message = mongoose.model('Message');
 
+
 const app = express();
 const PORT = process.env.PORT || 5001;
+
 
 // Middleware de base
 app.use(cors());
 app.use(express.json());
 
 // Exposer le dossier uploads pour servir les images
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+app.use('/uploads', express.static(path.join(__dirname, 'upload')));
 
 // Route de test simple
 // Route pour créer un utilisateur test (temporaire)

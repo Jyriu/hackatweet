@@ -5,13 +5,15 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import RepeatIcon from "@mui/icons-material/Repeat";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import RetweetDialog from "./RetweetDialog";
+import { likeTweet } from "../services/api"; // Import the API function
 import { Link } from "react-router-dom";
 import { useUserInfo } from "../hooks/useUserInfo"; // Nouveau hook
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
 
-const Tweet = ({ tweet, onRetweet }) => {
+const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
   const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(tweet.userLikes ? tweet.userLikes.length : 0);
   const [retweeted, setRetweeted] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState([]);
@@ -22,9 +24,22 @@ const Tweet = ({ tweet, onRetweet }) => {
   const { userInfo } = useUserInfo(tweet.author.username);
   const authorPhoto = tweet.author.photo || (userInfo && userInfo.photo);
 
-  const handleLike = () => {
-    setLiked(!liked);
-    // TODO: Implémenter la fonctionnalité like côté backend
+  const retweetCount = tweet.retweets ? tweet.retweets.length : 0;
+
+  useEffect(() => {
+    const currentUserId = localStorage.getItem("userId");
+    setLiked(tweet.userLikes.includes(currentUserId));
+  }, [tweet.userLikes]);
+
+  const handleLike = async () => {
+    try {
+      const response = await likeTweet(tweet._id);
+      setLiked(!liked);
+      setLikeCount(response.tweet.userLikes.length);
+      onUpdateTweet(response.tweet);
+    } catch (error) {
+      console.error("Error liking tweet:", error);
+    }
   };
 
   const handleRetweet = () => {
@@ -44,7 +59,7 @@ const Tweet = ({ tweet, onRetweet }) => {
     if (newComment.trim() !== "") {
       setComments([...comments, newComment]);
       setNewComment("");
-      // TODO: Implémenter la fonctionnalité de commentaire côté backend
+      // TODO: Implement comment functionality with backend
     }
   };
 
@@ -69,7 +84,25 @@ const Tweet = ({ tweet, onRetweet }) => {
             </Typography>
           </Link>
         </Box>
+
         <Typography variant="body1">{tweet.text}</Typography>
+
+        {tweet.hashtags && (
+          <Box sx={{ marginTop: "8px" }}>{renderHashtags(tweet.hashtags)}</Box>
+        )}
+
+        {tweet.link && (
+          <Typography
+            variant="body2"
+            color="primary"
+            sx={{ marginTop: "8px", wordWrap: "break-word" }}
+          >
+            <a href={tweet.link} target="_blank" rel="noopener noreferrer">
+              {tweet.link}
+            </a>
+          </Typography>
+        )}
+
         {tweet.mediaUrl && (
           <img
             src={tweet.mediaUrl}
@@ -77,13 +110,22 @@ const Tweet = ({ tweet, onRetweet }) => {
             style={{ width: "100%", borderRadius: "10px", marginTop: "10px" }}
           />
         )}
-        <Box sx={{ mt: 2, display: "flex", justifyContent: "space-between" }}>
-          <IconButton onClick={handleLike} color={liked ? "error" : "default"}>
-            <FavoriteIcon />
-          </IconButton>
-          <IconButton onClick={handleRetweet} color={retweeted ? "success" : "default"}>
-            <RepeatIcon />
-          </IconButton>
+
+        {tweet.originalTweet && renderOriginalTweet(tweet.originalTweet)}
+
+        <Box sx={{ mt: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Badge badgeContent={likeCount} color="error">
+            <IconButton onClick={handleLike} color={liked ? "error" : "default"}>
+              <FavoriteIcon />
+            </IconButton>
+          </Badge>
+
+          <Badge badgeContent={retweetCount} color="primary">
+            <IconButton onClick={handleRetweet} color={retweeted ? "success" : "default"}>
+              <RepeatIcon />
+            </IconButton>
+          </Badge>
+
           <IconButton onClick={() => setShowComments(!showComments)} color="primary">
             <ChatBubbleOutlineIcon />
           </IconButton>
@@ -95,7 +137,12 @@ const Tweet = ({ tweet, onRetweet }) => {
               <Typography
                 key={index}
                 variant="body2"
-                sx={{ backgroundColor: "#f5f5f5", padding: 1, borderRadius: "5px", marginBottom: "5px" }}
+                sx={{
+                  backgroundColor: "#f5f5f5",
+                  padding: "8px",
+                  borderRadius: "5px",
+                  marginBottom: "5px",
+                }}
               >
                 {comment}
               </Typography>

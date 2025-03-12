@@ -90,3 +90,19 @@ export const createTweet = async (tweetContent, selectedFile, link) => {
     throw error; // Throw the error to handle it in the component
   }
 };
+
+
+
+export const likeTweet = async (tweetId) => {
+  try {
+    const response = await axios.post(`${API_URL}/api/tweet/like/${tweetId}`, {}, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error liking tweet:", error);
+    throw error;
+  }
+};
