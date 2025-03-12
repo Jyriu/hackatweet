@@ -65,7 +65,7 @@ exports.createTweet = async (req, res) => {
 
 
 // Récupérer tous les tweets
-exports.getTweets = async (req, res) => {
+exports.getTweets2 = async (req, res) => {
     try {
         const tweets = await Tweet.find().populate('author', 'username');
         res.json(tweets);
@@ -74,6 +74,35 @@ exports.getTweets = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la récupération des tweets', error: error.message });
     }
 };
+
+exports.getTweets = async (req, res) => {
+    try {
+      const { page = 1, limit = 10, userId } = req.query;
+  
+      // Find the user to get their positive_hashtags
+      const user = await User.findById(userId);
+      const positiveHashtags = user?.positive_hashtags || [];
+  
+      // Query to fetch tweets
+      let query = Tweet.find().populate('author', 'username');
+  
+      // Filter tweets based on positive_hashtags (after the first load)
+      if (positiveHashtags.length > 0) {
+        query = query.where('hashtags').in(positiveHashtags);
+      }
+  
+      // Paginate the results
+      const tweets = await query
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec();
+  
+      res.json(tweets);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des tweets:', error);
+      res.status(500).json({ message: 'Erreur lors de la récupération des tweets', error: error.message });
+    }
+  };
 
 // Récupérer tous les tweets de l'utilisateur connecté
 exports.getUserTweets = async (req, res) => {

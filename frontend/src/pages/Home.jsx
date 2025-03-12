@@ -2,28 +2,41 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Container, Typography, Grid, CircularProgress, Box } from "@mui/material";
 import Tweet from "../components/Tweet";
 import NewTweet from "../components/NewTweet";
-
+import axios from "axios";
+import { v4 as uuidv4 } from 'uuid';
 const Home = () => {
   const [tweets, setTweets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [emotionData, setEmotionData] = useState(null); // State for emotion analysis results
   const [visibleTweetId, setVisibleTweetId] = useState(null); // State for the currently visible tweet ID
+  const [page, setPage] = useState(1); // State for pagination
+  const [hasMore, setHasMore] = useState(true); // State to track if more tweets are available
   const videoRef = useRef(null); // Ref for the video element
   const canvasRef = useRef(null); // Ref for the canvas element
   const tweetsContainerRef = useRef(null); // Ref for the tweets container
 
-
-  
-  // Charger les tweets depuis localStorage au démarrage
-  useEffect(() => {
-    const storedTweets = localStorage.getItem("tweets");
-    if (storedTweets) {
-      setTweets(JSON.parse(storedTweets));
+  // Load tweets from the backend
+  const fetchTweets = async (page) => {
+    try {
+      const response = await axios.get(`http://localhost:5001/api/tweet/tweets?page=${page}&limit=10`);
+      if (response.data.length > 0) {
+        setTweets((prevTweets) => [...prevTweets, ...response.data]);
+      } else {
+        setHasMore(false); // No more tweets to load
+      }
+    } catch (error) {
+      console.error("Error fetching tweets:", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
+  };
+
+  // Load initial tweets
+  useEffect(() => {
+    fetchTweets(page);
   }, []);
 
-  // Ajouter un tweet et le sauvegarder dans localStorage
+  // Add a new tweet and save to localStorage
   const addNewTweet = (newTweet) => {
     const updatedTweets = [newTweet, ...tweets];
     setTweets(updatedTweets);
@@ -85,12 +98,38 @@ const Home = () => {
     };
   }, []);
 
+  // Save emotion for a tweet
+  const saveEmotion = async (tweetId, emotion) => {
+    try {
+      const userId = "67d00c5e00073dd855bac0a5"; // Replace with the actual user ID
+      await axios.post("http://localhost:5001/api/emotions/emotions/", {
+        user_id: userId,
+        tweet_id: tweetId,
+        emotion: emotion,
+      });
+      //console.log("Emotion saved for tweet:", tweetId);
+    } catch (error) {
+      console.error("Error saving emotion:", error);
+    }
+  };
+
   // Track the currently visible tweet
   const handleScroll = useCallback(() => {
     if (tweetsContainerRef.current) {
       const container = tweetsContainerRef.current;
       const tweets = container.querySelectorAll(".tweet-item");
 
+      // Check if the user has scrolled to the bottom
+      if (
+        container.scrollTop + container.clientHeight >= container.scrollHeight - 100 &&
+        hasMore &&
+        !loading
+      ) {
+        setPage((prevPage) => prevPage + 1); // Load the next page of tweets
+        fetchTweets(page + 1);
+      }
+
+      // Track the first fully visible tweet
       for (let i = 0; i < tweets.length; i++) {
         const tweet = tweets[i];
         const rect = tweet.getBoundingClientRect();
@@ -101,15 +140,20 @@ const Home = () => {
           if (tweetId !== visibleTweetId) {
             setVisibleTweetId(tweetId);
 
+            // Save the emotion for the visible tweet
+            if (emotionData) {
+              saveEmotion(tweetId, emotionData.dominant_emotion,'67d00c5e00073dd855bac0a5');
+            }
+
             // Log the tweet ID and emotion data
-            console.log("Visible Tweet ID:", tweetId);
-            console.log("Emotion Data:", emotionData);
+            //console.log("Visible Tweet ID:", tweetId);
+            //console.log("Emotion Data:", emotionData);
           }
           break;
         }
       }
     }
-  }, [visibleTweetId, emotionData]);
+  }, [visibleTweetId, emotionData, hasMore, loading, page]);
 
   // Add scroll event listener to the tweets container
   useEffect(() => {
@@ -152,7 +196,7 @@ const Home = () => {
         >
           <Grid container spacing={2}>
             {tweets.map((tweet) => (
-              <Grid item xs={12} key={tweet.idTweet} className="tweet-item" data-tweet-id={tweet.idTweet}>
+              <Grid item xs={12} key={uuidv4()} className="tweet-item" data-tweet-id={tweet._id}>
                 <Tweet tweet={tweet} />
               </Grid>
             ))}
