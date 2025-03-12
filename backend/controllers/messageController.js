@@ -1,168 +1,178 @@
 const mongoose = require('mongoose');
 const Message = mongoose.model('Message');
 const User = mongoose.model('User');
+const Conversation = mongoose.model('Conversation');
 
-// Obtenir l'historique des messages entre deux utilisateurs
-exports.getMessageHistory = async (req, res) => {
+// Envoyer un nouveau message
+exports.sendMessage = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const currentUserId = req.user.id;
+    const { recipientId, content, conversationId } = req.body;
+    const senderId = req.user.id;
     
-    // Vérifier que les utilisateurs existent
-    const [user, currentUser] = await Promise.all([
-      User.findById(userId),
-      User.findById(currentUserId)
-    ]);
+    // Si un ID de conversation est fourni, vérifier qu'elle existe et que l'utilisateur en est membre
+    let conversation;
     
-    if (!user || !currentUser) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    if (conversationId) {
+      conversation = await Conversation.findOne({
+        _id: conversationId,
+        participants: senderId
+      });
+      
+      if (!conversation) {
+        return res.status(404).json({ message: 'Conversation non trouvée ou accès non autorisé' });
+      }
+    } else if (recipientId) {
+      // Si aucun ID de conversation n'est fourni mais un destinataire est spécifié,
+      // trouver ou créer une conversation privée
+      const recipient = await User.findById(recipientId);
+      if (!recipient) {
+        return res.status(404).json({ message: 'Destinataire non trouvé' });
+      }
+      
+      conversation = await Conversation.findOrCreatePrivate(senderId, recipientId);
+    } else {
+      return res.status(400).json({ message: 'Conversation ID ou Recipient ID requis' });
     }
     
-    // Récupérer les messages dans les deux sens
-    const messages = await Message.find({
-      $or: [
-        { sender: currentUserId, recipient: userId },
-        { sender: userId, recipient: currentUserId }
-      ]
-    })
-    .sort({ createdAt: 1 }) // Tri chronologique
-    .populate('sender', '_id username') // Enrichir avec les données de l'expéditeur
-    .limit(100); // Limiter à 100 messages pour des raisons de performance
+    // Vérifier le contenu
+    if (!content || content.trim() === '') {
+      return res.status(400).json({ message: 'Le contenu du message ne peut pas être vide' });
+    }
     
-    return res.status(200).json(messages);
+    // Créer le message
+    const newMessage = new Message({
+      conversation: conversation._id,
+      sender: senderId,
+      recipient: conversation.isGroup ? undefined : (conversation.participants.find(p => p.toString() !== senderId.toString())),
+      content,
+      isGroupMessage: conversation.isGroup
+    });
+    
+    await newMessage.save();
+    
+    // Peupler le message avec les infos de l'expéditeur pour la réponse
+    await newMessage.populate('sender', '_id username avatar');
+    
+    return res.status(201).json(newMessage);
   } catch (error) {
-    console.error('Erreur lors de la récupération des messages:', error);
+    console.error('Erreur lors de l\'envoi du message:', error);
     return res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
 
-// Obtenir la liste des conversations récentes
-exports.getConversations = async (req, res) => {
+// Marquer un message comme lu
+exports.markMessageAsRead = async (req, res) => {
   try {
+    const { messageId } = req.params;
     const userId = req.user.id;
     
-    // Récupérer les derniers messages distincts par conversation
-    const messages = await Message.aggregate([
-      {
-        // Filtrer pour inclure toutes les conversations où l'utilisateur est impliqué
-        $match: {
-          $or: [
-            { sender: mongoose.Types.ObjectId(userId) },
-            { recipient: mongoose.Types.ObjectId(userId) }
-          ]
-        }
-      },
-      {
-        // Trier par date décroissante pour avoir les plus récents d'abord
-        $sort: { createdAt: -1 }
-      },
-      {
-        // Créer un champ qui identifie l'autre participant
-        $addFields: {
-          otherParticipant: {
-            $cond: {
-              if: { $eq: ["$sender", mongoose.Types.ObjectId(userId)] },
-              then: "$recipient",
-              else: "$sender"
-            }
-          }
-        }
-      },
-      {
-        // Regrouper par conversation (autre participant)
-        $group: {
-          _id: "$otherParticipant",
-          lastMessage: { $first: "$$ROOT" },
-          unreadCount: {
-            $sum: {
-              $cond: [
-                { $and: [
-                  { $eq: ["$recipient", mongoose.Types.ObjectId(userId)] },
-                  { $eq: ["$read", false] }
-                ]},
-                1,
-                0
-              ]
-            }
-          }
-        }
-      },
-      {
-        // Joindre avec les informations utilisateur
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'participantInfo'
-        }
-      },
-      {
-        // Restructurer le résultat
-        $project: {
-          _id: 1,
-          lastMessage: 1,
-          unreadCount: 1,
-          participant: { $arrayElemAt: ["$participantInfo", 0] }
-        }
-      },
-      {
-        // Projeter seulement les champs nécessaires de l'utilisateur
-        $project: {
-          _id: 1,
-          lastMessage: 1,
-          unreadCount: 1,
-          participant: {
-            _id: "$participant._id",
-            username: "$participant.username"
-          }
-        }
-      }
-    ]);
+    const message = await Message.findById(messageId);
     
-    return res.status(200).json(messages);
-  } catch (error) {
-    console.error('Erreur lors de la récupération des conversations:', error);
-    return res.status(500).json({ message: 'Erreur serveur', error: error.message });
-  }
-};
-
-// Marquer tous les messages d'une conversation comme lus
-exports.markConversationAsRead = async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const currentUserId = req.user.id;
+    if (!message) {
+      return res.status(404).json({ message: 'Message non trouvé' });
+    }
     
-    // Mettre à jour tous les messages non lus de l'autre utilisateur
-    const result = await Message.updateMany(
-      {
-        sender: userId,
-        recipient: currentUserId,
-        read: false
+    // Vérifier que l'utilisateur est bien le destinataire ou participant à la conversation
+    const conversation = await Conversation.findOne({
+      _id: message.conversation,
+      participants: userId
+    });
+    
+    if (!conversation) {
+      return res.status(403).json({ message: 'Accès non autorisé à ce message' });
+    }
+    
+    // Si l'utilisateur est l'expéditeur, pas besoin de marquer comme lu
+    if (message.sender.toString() === userId) {
+      return res.status(400).json({ message: 'Vous ne pouvez pas marquer votre propre message comme lu' });
+    }
+    
+    // Mettre à jour le message
+    const updatedMessage = await Message.findByIdAndUpdate(
+      messageId,
+      { 
+        read: true,
+        $addToSet: { readBy: userId }
       },
-      { read: true }
+      { new: true }
     );
     
-    return res.status(200).json({ 
-      message: 'Messages marqués comme lus',
-      count: result.nModified 
-    });
+    // Réduire le compteur de messages non lus pour cet utilisateur
+    await conversation.resetUnread(userId);
+    
+    return res.status(200).json(updatedMessage);
   } catch (error) {
-    console.error('Erreur lors du marquage des messages comme lus:', error);
+    console.error('Erreur lors du marquage du message comme lu:', error);
     return res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
 
-// Obtenir le nombre total de messages non lus pour l'utilisateur
+// Supprimer un message (uniquement pour l'expéditeur)
+exports.deleteMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.user.id;
+    
+    const message = await Message.findById(messageId);
+    
+    if (!message) {
+      return res.status(404).json({ message: 'Message non trouvé' });
+    }
+    
+    // Vérifier que l'utilisateur est bien l'expéditeur
+    if (message.sender.toString() !== userId) {
+      return res.status(403).json({ message: 'Vous ne pouvez supprimer que vos propres messages' });
+    }
+    
+    // Vérifier si c'est le dernier message de la conversation
+    const conversation = await Conversation.findById(message.conversation);
+    
+    // Supprimer le message
+    await Message.findByIdAndDelete(messageId);
+    
+    // Si c'était le dernier message, mettre à jour la référence dans la conversation
+    if (conversation && conversation.lastMessage && conversation.lastMessage.toString() === messageId) {
+      // Trouver le message précédent
+      const previousMessage = await Message.findOne({
+        conversation: conversation._id
+      })
+      .sort({ createdAt: -1 });
+      
+      if (previousMessage) {
+        conversation.lastMessage = previousMessage._id;
+      } else {
+        conversation.lastMessage = null;
+      }
+      
+      await conversation.save();
+    }
+    
+    return res.status(200).json({ message: 'Message supprimé avec succès' });
+  } catch (error) {
+    console.error('Erreur lors de la suppression du message:', error);
+    return res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+// Obtenir le nombre total de messages non lus pour l'utilisateur (toutes conversations confondues)
 exports.getUnreadCount = async (req, res) => {
   try {
     const userId = req.user.id;
     
-    const count = await Message.countDocuments({
-      recipient: userId,
-      read: false
+    // Récupérer toutes les conversations de l'utilisateur
+    const conversations = await Conversation.find({
+      participants: userId
     });
     
-    return res.status(200).json({ count });
+    // Calculer le total des messages non lus à partir des compteurs de chaque conversation
+    let totalUnread = 0;
+    
+    for (const conversation of conversations) {
+      const unreadCount = conversation.unreadCounts.get(userId.toString()) || 0;
+      totalUnread += unreadCount;
+    }
+    
+    return res.status(200).json({ count: totalUnread });
   } catch (error) {
     console.error('Erreur lors du comptage des messages non lus:', error);
     return res.status(500).json({ message: 'Erreur serveur', error: error.message });
