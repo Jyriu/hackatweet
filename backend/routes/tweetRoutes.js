@@ -12,6 +12,7 @@ router.post('/like/:id', auth, tweetController.likeTweet);
 router.post('/retweet/:id', auth, tweetController.retweet);
 router.get('/userTweets', auth, tweetController.getUserTweets);
 router.post('/comment/:id', auth, tweetController.addComment);
+router.post('/reply/:id', auth, tweetController.replyToComment);
 router.put('/editcomment/:id', auth, tweetController.updateComment);
 router.post('/likeComment/:id', auth, tweetController.likeComment);
 router.get('/followingTweets', auth, tweetController.getFollowingTweets);

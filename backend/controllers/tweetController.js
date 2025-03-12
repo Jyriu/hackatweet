@@ -208,7 +208,7 @@ exports.deleteAllTweets = async (req, res) => {
     }
 };
 
-// Ajouter un like à un tweet
+// Ajouter ou retirer un like à un tweet
 exports.likeTweet = async (req, res) => {
     try {
         const tweet = await Tweet.findById(req.params.id);
@@ -218,30 +218,35 @@ exports.likeTweet = async (req, res) => {
             console.warn(`⚠️ [Tweet] Tentative de like d'un tweet inexistant: ${req.params.id}`);
             return res.status(404).json({ message: 'Tweet non trouvé' });
         }
+
         if (tweet.userLikes.includes(req.user.id)) {
-            console.warn(`⚠️ [Tweet] Utilisateur ${req.user.id} a déjà liké le tweet ${req.params.id}`);
-            return res.status(400).json({ message: 'Vous avez déjà liké ce tweet' });
-        }
-
-        tweet.userLikes.push(req.user.id);
-        await tweet.save();
-
-        // Si l'utilisateur qui like n'est pas l'auteur du tweet, envoyer une notification
-        if (tweet.author.toString() !== req.user.id) {
-            await global.sendNotification({
-                userId: tweet.author,
-                type: 'like',
-                triggeredBy: req.user.id,
-                contentId: tweet._id,
-                contentModel: 'Tweet',
-                read: false
-            });
-            console.log(`✅ [Tweet] Like + notification envoyée de ${req.user.id} à ${tweet.author} pour le tweet ${tweet._id}`);
+            // Retirer le like
+            tweet.userLikes = tweet.userLikes.filter(userId => userId.toString() !== req.user.id);
+            await tweet.save();
+            console.log(`✅ [Tweet] Like retiré par ${req.user.id} pour le tweet ${tweet._id}`);
+            return res.json({ message: 'Like retiré', tweet });
         } else {
-            console.log(`✅ [Tweet] Like sans notification (auteur = liker) pour le tweet ${tweet._id}`);
-        }
+            // Ajouter le like
+            tweet.userLikes.push(req.user.id);
+            await tweet.save();
 
-        res.json({ message: 'Tweet liké', tweet });
+            // Si l'utilisateur qui like n'est pas l'auteur du tweet, envoyer une notification
+            if (tweet.author.toString() !== req.user.id) {
+                await global.sendNotification({
+                    userId: tweet.author,
+                    type: 'like',
+                    triggeredBy: req.user.id,
+                    contentId: tweet._id,
+                    contentModel: 'Tweet',
+                    read: false
+                });
+                console.log(`✅ [Tweet] Like + notification envoyée de ${req.user.id} à ${tweet.author} pour le tweet ${tweet._id}`);
+            } else {
+                console.log(`✅ [Tweet] Like sans notification (auteur = liker) pour le tweet ${tweet._id}`);
+            }
+
+            return res.json({ message: 'Tweet liké', tweet });
+        }
     } catch (error) {
         console.error(`📛 [Tweet] Erreur lors du like: ${error.message}`, error);
         res.status(500).json({ message: 'Erreur lors de l\'ajout du like', error: error.message });
@@ -332,6 +337,51 @@ exports.addComment = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de l\'ajout du commentaire', error: error.message });
     }
 };
+
+// Répondre à un commentaire
+exports.replyToComment = async (req, res) => {
+    try {
+        const { text } = req.body;
+        if (!req.user) {
+            return res.status(401).json({ message: 'Utilisateur non authentifié' });
+        }
+        if (!text || text.trim() === '') {
+            return res.status(400).json({ message: 'Le texte de la réponse est requis' });
+        }
+        const comment = await Replies.findById(req.params.id);
+        if (!comment) {
+            return res.status(404).json({ message: 'Commentaire non trouvé' });
+        }
+        const newReply = new Replies({
+            text,
+            author: req.user.id,
+            idComment: comment._id,
+            date: new Date()
+        });
+        await newReply.save();
+        comment.replies = comment.replies || [];
+        comment.replies.push(newReply._id);
+        await comment.save();
+
+        // Ajouter notification à l'auteur du commentaire
+        if (comment.author.toString() !== req.user.id) {
+            await global.sendNotification({
+                userId: comment.author,
+                type: 'reply',
+                triggeredBy: req.user.id,
+                contentId: comment._id,
+                contentModel: 'Replies',
+                read: false
+            });
+        }
+
+        res.status(201).json(newReply);
+    } catch (error) {
+        console.error('Erreur lors de la réponse au commentaire:', error);
+        res.status(500).json({ message: 'Erreur lors de la réponse au commentaire', error: error.message });
+    }
+};
+
 
 // Ajouter un like à un commentaire
 exports.likeComment = async (req, res) => {

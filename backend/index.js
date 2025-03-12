@@ -11,8 +11,10 @@ require('./models/User');
 require('./models/Tweet');
 require('./models/Replies');
 require('./models/Notification');
+require('./models/Message');
 const User = mongoose.model('User');
 const Notification = mongoose.model('Notification');
+const Message = mongoose.model('Message');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -59,6 +61,7 @@ const tweetRoutes = require('./routes/tweetRoutes');
 const userRoutes = require('./routes/userRoutes');
 const searchRoutes = require('./routes/searchRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const messageRoutes = require('./routes/messageRoutes');
 
 // Application des routes
 app.use('/api/auth', authRoutes);
@@ -66,6 +69,7 @@ app.use('/api/tweet', tweetRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Créer le serveur HTTP
 const server = http.createServer(app);
@@ -131,10 +135,91 @@ io.on('connection', (socket) => {
   // Envoyer les notifications non lues au moment de la connexion
   socket.emit('connection_established', { message: 'Connected to notification service' });
   
+  // SYSTÈME DE MESSAGERIE
+  // Envoi d'un message à un utilisateur
+  socket.on('send_message', async (data) => {
+    try {
+      const { recipientId, content } = data;
+      
+      if (!recipientId || !content) {
+        return socket.emit('message_error', { error: 'Données manquantes' });
+      }
+      
+      // Créer et sauvegarder le message
+      const newMessage = new Message({
+        sender: socket.user._id,
+        recipient: recipientId,
+        content
+      });
+      
+      await newMessage.save();
+      
+      // Enrichir les données du message avec les informations de l'expéditeur
+      const messageWithSender = {
+        ...newMessage._doc,
+        sender: {
+          _id: socket.user._id,
+          username: socket.user.username
+        }
+      };
+      
+      // Envoyer le message à l'expéditeur pour confirmation
+      socket.emit('message_sent', messageWithSender);
+      
+      // Envoyer le message au destinataire s'il est connecté
+      const recipientSocketId = userSocketMap[recipientId];
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit('new_message', messageWithSender);
+      }
+      
+      console.log(`📨 [Message] De ${socket.user.username} à ${recipientId}`);
+    } catch (error) {
+      console.error('Erreur envoi message:', error);
+      socket.emit('message_error', { error: error.message });
+    }
+  });
+  
+  // Marquer un message comme lu
+  socket.on('mark_message_read', async (data) => {
+    try {
+      const { messageId } = data;
+      
+      // Mettre à jour le message
+      const message = await Message.findByIdAndUpdate(
+        messageId,
+        { read: true },
+        { new: true }
+      );
+      
+      if (!message) {
+        return socket.emit('message_error', { error: 'Message non trouvé' });
+      }
+      
+      // Notifier l'expéditeur que le message a été lu
+      const senderSocketId = userSocketMap[message.sender.toString()];
+      if (senderSocketId) {
+        io.to(senderSocketId).emit('message_read', { messageId });
+      }
+    } catch (error) {
+      console.error('Erreur marquer message comme lu:', error);
+      socket.emit('message_error', { error: error.message });
+    }
+  });
+  
+  // Récupérer la liste des utilisateurs en ligne
+  socket.on('get_online_users', () => {
+    // Convertir l'objet de mapping en tableau d'IDs d'utilisateurs
+    const onlineUserIds = Object.keys(userSocketMap);
+    socket.emit('online_users', { users: onlineUserIds });
+  });
+  
   // Gérer la déconnexion
   socket.on('disconnect', () => {
     console.log(`🔌 [Socket] Utilisateur déconnecté: ${socket.user.username} (${socket.user._id})`);
     delete userSocketMap[socket.user._id];
+    
+    // Informer les autres utilisateurs qu'un utilisateur s'est déconnecté
+    socket.broadcast.emit('user_offline', { userId: socket.user._id });
   });
 });
 
