@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:5000"; // Modifier selon le backend
+const API_URL = import.meta.env.VITE_BACKEND_URL;
+//const API_URL = "http://localhost:5000"; // Modifier selon le backend
 
 export const fetchTweets = async () => {
   const response = await axios.get(`${API_URL}/tweets`);
