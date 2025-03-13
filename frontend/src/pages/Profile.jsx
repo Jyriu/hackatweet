@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  Grid,
   Container,
   Box,
   Tabs,
@@ -98,7 +99,7 @@ const Profile = () => {
       case 0:
         // Récupérer les tweets de l'utilisateur (tweets + retweets)
         axios
-          .get(`${API_URL}/api/tweet/user/${user.id}/tweets`, {
+          .get(`${API_URL}/api/tweet/user/${user._id}/tweets`, {
             headers: { Authorization: `Bearer ${token}` },
           })
           .then((res) => {
