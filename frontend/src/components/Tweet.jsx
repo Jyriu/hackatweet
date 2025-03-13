@@ -1,11 +1,6 @@
-<<<<<<< HEAD
-import React, { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, Typography, Button, IconButton, TextField, Avatar, Box, Chip } from "@mui/material";
-=======
 // Tweet.js
 import React, { useState } from "react";
 import { Card, CardContent, Typography, Button, IconButton, TextField, Avatar, Box } from "@mui/material";
->>>>>>> bbe3e32538eec373f5d588327050204054d34f52
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import RepeatIcon from "@mui/icons-material/Repeat";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
@@ -49,98 +44,11 @@ const Tweet = ({ tweet, onRetweet }) => {
     if (newComment.trim() !== "") {
       setComments([...comments, newComment]);
       setNewComment("");
-<<<<<<< HEAD
-=======
       // TODO: Implémenter la fonctionnalité de commentaire côté backend
->>>>>>> bbe3e32538eec373f5d588327050204054d34f52
     }
   };
 
   return (
-<<<<<<< HEAD
-    <Card sx={{ marginBottom: 2, padding: 2 }} ref={ref}>
-      <CardContent>
-        <Box display="flex" alignItems="center" mb={1}>
-          <Avatar 
-            src={tweet.author?.avatar} 
-            sx={{ marginRight: 1 }}
-          >
-            {tweet.author?.username?.charAt(0).toUpperCase() || "A"}
-          </Avatar>
-          <Box>
-            <Typography variant="subtitle1" fontWeight="bold">
-              {tweet.author?.username || "Anonyme"}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {formatDate(tweet.date)}
-            </Typography>
-          </Box>
-        </Box>
-
-        <Typography variant="body1" py={1}>{tweet.text}</Typography>
-        
-        {tweet.hashtags && tweet.hashtags.length > 0 && (
-          <Box display="flex" flexWrap="wrap" gap={0.5} mb={1}>
-            {tweet.hashtags.map((tag, index) => (
-              <Chip 
-                key={index} 
-                label={`#${tag}`} 
-                size="small" 
-                color="primary" 
-                variant="outlined" 
-              />
-            ))}
-          </Box>
-        )}
-        
-        {tweet.mediaUrl && (
-          <Box mt={1} mb={1}>
-            <img 
-              src={tweet.mediaUrl} 
-              alt="Tweet media" 
-              style={{ 
-                width: "100%", 
-                borderRadius: "10px", 
-                maxHeight: "300px", 
-                objectFit: "cover" 
-              }} 
-            />
-          </Box>
-        )}
-
-        <Box display="flex" justifyContent="space-between" mt={2}>
-          <Box display="flex" alignItems="center">
-            <IconButton 
-              onClick={handleLike} 
-              color={liked ? "error" : "default"}
-              disabled={!user}
-            >
-              <FavoriteIcon />
-            </IconButton>
-            <Typography>{tweet.likes?.length || 0}</Typography>
-          </Box>
-
-          <Box display="flex" alignItems="center">
-            <IconButton 
-              onClick={handleRetweet} 
-              color={retweeted ? "success" : "default"}
-              disabled={!user}
-            >
-              <RepeatIcon />
-            </IconButton>
-            <Typography>{tweet.retweets?.length || 0}</Typography>
-          </Box>
-
-          <Box display="flex" alignItems="center">
-            <IconButton 
-              onClick={() => setShowComments(!showComments)} 
-              color="primary"
-            >
-              <ChatBubbleOutlineIcon />
-            </IconButton>
-            <Typography>{comments.length}</Typography>
-          </Box>
-=======
     <Card sx={{ marginBottom: 2, padding: 2 }}>
       <CardContent>
         <Box display="flex" alignItems="center" mb={2}>
@@ -179,7 +87,6 @@ const Tweet = ({ tweet, onRetweet }) => {
           <IconButton onClick={() => setShowComments(!showComments)} color="primary">
             <ChatBubbleOutlineIcon />
           </IconButton>
->>>>>>> bbe3e32538eec373f5d588327050204054d34f52
         </Box>
 
         {showComments && (
@@ -219,8 +126,4 @@ const Tweet = ({ tweet, onRetweet }) => {
   );
 };
 
-<<<<<<< HEAD
 export default Tweet;
-=======
-export default Tweet;
->>>>>>> bbe3e32538eec373f5d588327050204054d34f52
