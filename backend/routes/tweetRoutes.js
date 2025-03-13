@@ -25,7 +25,7 @@ router.delete('/deleteTweet/:id', auth, tweetController.deleteTweet);
 router.delete('/deleteAllTweets', auth, tweetController.deleteAllTweets);
 router.post('/signet/:id', auth, tweetController.bookmarkTweet);
 router.get('/commentedTweetsByFollowings', auth, tweetController.getCommentedTweetsByFollowings);
-router.get('/gettweet/:id', tweetController.getTweetById);
+router.get('/gettweet/:id', auth, tweetController.getTweetById);
 router.get('/allTweetsByFollowings', auth, tweetController.getAllTweetsByFollowings);
 
 module.exports = router;
