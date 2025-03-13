@@ -1,67 +1,122 @@
 import React, { useState, useEffect } from "react";
-import { Container, Typography, Switch, FormControlLabel, Snackbar, Alert } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import {
+  Container,
+  Card,
+  CardContent,
+  Typography,
+  FormControlLabel,
+  Switch,
+  Snackbar,
+  Alert,
+  Box,
+} from "@mui/material";
+import { useSelector, useDispatch } from "react-redux";
+import axios from "axios";
+import { setUser } from "../redux/Store"; // Ajustez le chemin d'import si nécessaire
 
-const Settings = ({ onCameraToggle }) => {
-  const navigate = useNavigate(); // Navigation pour rediriger après action
+const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
 
-  const [notificationsEnabled, setNotificationsEnabled] = useState(
-    JSON.parse(localStorage.getItem("notificationsEnabled")) || false
-  );
-  const [cameraEnabled, setCameraEnabled] = useState(
-    JSON.parse(localStorage.getItem("cameraEnabled")) || false
-  );
-  const [openSnackbar, setOpenSnackbar] = useState(false);
+const Settings = () => {
+  const dispatch = useDispatch();
+  const currentUser = useSelector((state) => state.user.currentUser);
+  const token = useSelector((state) => state.user.token);
+
+  // États locaux pour les switches, initialisés à false
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [cameraEnabled, setCameraEnabled] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  // Fonction pour gérer le changement d'état des notifications
-  const handleNotificationToggle = () => {
-    const newState = !notificationsEnabled;
-    setNotificationsEnabled(newState);
-    localStorage.setItem("notificationsEnabled", JSON.stringify(newState));
-    setSnackbarMessage(newState ? "Notifications activées" : "Notifications désactivées");
-    setOpenSnackbar(true);
-    
-    // Rediriger après 1,5 seconde seulement si l'utilisateur interagit
-    setTimeout(() => navigate("/"), 1500);
+  // Initialisation des switches dès que currentUser est chargé depuis Redux
+  useEffect(() => {
+    if (currentUser) {
+      setNotificationsEnabled(currentUser.notifOn);
+      setCameraEnabled(currentUser.cameraOn);
+    }
+  }, [currentUser]);
+
+  // Fonction générique de toggle qui met à jour via l'API et actualise Redux et le state local
+  const handleToggle = async (settingName) => {
+    try {
+      const response = await axios.put(
+        `${API_URL}/api/user/toggle/${settingName}`,
+        null,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      // On s'attend à recevoir par exemple { notifOn: true } ou { cameraOn: true }
+      const updatedValue = response.data[settingName];
+      if (settingName === "notifOn") {
+        setNotificationsEnabled(updatedValue);
+      } else if (settingName === "cameraOn") {
+        setCameraEnabled(updatedValue);
+      }
+      // Mettre à jour Redux pour que currentUser reflète les nouveaux paramètres
+      dispatch(setUser({ ...currentUser, [settingName]: updatedValue }));
+      setSnackbarMessage(
+        settingName === "notifOn"
+          ? updatedValue
+            ? "Notifications activées"
+            : "Notifications désactivées"
+          : updatedValue
+          ? "Caméra activée"
+          : "Caméra désactivée"
+      );
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error("Erreur lors du toggle:", error);
+      setSnackbarMessage("Erreur lors de la mise à jour");
+      setSnackbarOpen(true);
+    }
   };
 
-  // Fonction pour gérer le changement d'état de la caméra
+  const handleNotificationToggle = () => {
+    handleToggle("notifOn");
+  };
+
   const handleCameraToggle = () => {
-    const newState = !cameraEnabled;
-    setCameraEnabled(newState);
-    localStorage.setItem("cameraEnabled", JSON.stringify(newState));
-
-    if (onCameraToggle) {
-      onCameraToggle(newState);
-    }
-
-    setSnackbarMessage(newState ? "Caméra activée" : "Caméra désactivée");
-    setOpenSnackbar(true);
-    
-    // Rediriger après 1,5 seconde seulement si l'utilisateur interagit
-    setTimeout(() => navigate("/"), 1200);
+    handleToggle("cameraOn");
   };
 
   return (
-    <Container maxWidth="sm" sx={{ marginTop: 4 }}>
-      <Typography variant="h4" color="primary" gutterBottom>
-        Paramètres
-      </Typography>
-      
-      <FormControlLabel
-        control={<Switch checked={notificationsEnabled} onChange={handleNotificationToggle} />}
-        label="Activer les notifications"
-      />
-      
-      <FormControlLabel
-        control={<Switch checked={cameraEnabled} onChange={handleCameraToggle} />}
-        label="Activer la caméra"
-      />
-
-      {/* Snackbar pour afficher les notifications */}
-      <Snackbar open={openSnackbar} autoHideDuration={2000} onClose={() => setOpenSnackbar(false)}>
-        <Alert onClose={() => setOpenSnackbar(false)} severity="info">
+    <Container maxWidth="sm" sx={{ mt: 4 }}>
+      <Card sx={{ p: 2, boxShadow: 3 }}>
+        <CardContent>
+          <Typography variant="h4" color="primary" gutterBottom>
+            Paramètres
+          </Typography>
+          <Box sx={{ my: 2 }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={notificationsEnabled}
+                  onChange={handleNotificationToggle}
+                  color="primary"
+                />
+              }
+              label="Activer les notifications"
+            />
+          </Box>
+          <Box sx={{ my: 2 }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={cameraEnabled}
+                  onChange={handleCameraToggle}
+                  color="primary"
+                />
+              }
+              label="Activer la caméra"
+            />
+          </Box>
+        </CardContent>
+      </Card>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={2000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity="info" sx={{ width: "100%" }}>
           {snackbarMessage}
         </Alert>
       </Snackbar>

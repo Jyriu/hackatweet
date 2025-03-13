@@ -21,6 +21,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import axios from "axios";
+import { useSelector } from "react-redux";
 import Tweet from "../components/Tweet";
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
@@ -40,53 +41,76 @@ const UserProfile = () => {
   const [following, setFollowing] = useState([]);
   const [loadingFollowers, setLoadingFollowers] = useState(false);
   const [loadingFollowing, setLoadingFollowing] = useState(false);
-  const token = localStorage.getItem("token");
+  const token = useSelector((state) => state.user.token);
 
-  useEffect(() => {
-    const fetchUserAndTweets = async () => {
-      try {
-        // Récupérer les informations de l'utilisateur visité
-        const userResponse = await axios.get(
-          `${API_URL}/api/user/by-username/${username}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setVisitedUser(userResponse.data);
-        // On utilise le champ isFollowing s'il est fourni par l'API
-        setIsFollowing(userResponse.data.isFollowing || false);
+  // Utiliser Redux pour currentUser
+  const currentUser = useSelector((state) => state.user.currentUser);
+  const currentUserId = currentUser ? currentUser._id : null;
 
-        // Charger les tweets (tweets + retweets)
-        const tweetsResponse = await axios.get(
-          `${API_URL}/api/tweet/user/${userResponse.data._id}/tweets`,
-          { headers: { Authorization: `Bearer ${token}` } }
+  // Fonction pour récupérer le profil de l'utilisateur visité
+  const fetchVisitedUser = async () => {
+    try {
+      const userResponse = await axios.get(
+        `${API_URL}/api/user/by-username/${username}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setVisitedUser(userResponse.data);
+      if (userResponse.data.followers) {
+        setIsFollowing(
+          userResponse.data.followers.some(
+            (follower) => String(follower._id) === String(currentUserId)
+          )
         );
-        setTweets(tweetsResponse.data);
-      } catch (error) {
-        console.error("Erreur lors du chargement des données :", error);
+      } else {
+        setIsFollowing(false);
       }
+    } catch (error) {
+      console.error("Erreur lors du chargement des données :", error);
+    }
+  };
+
+  // Charger visitedUser dès que le username, token ou currentUserId change
+  useEffect(() => {
+    const fetchData = async () => {
+      await fetchVisitedUser();
       setLoading(false);
     };
+    fetchData();
+  }, [username, token, currentUserId]);
 
-    fetchUserAndTweets();
-  }, [username, token]);
+  // Charger les tweets lorsque visitedUser est disponible
+  useEffect(() => {
+    if (visitedUser) {
+      axios
+        .get(`${API_URL}/api/tweet/user/${visitedUser._id}/tweets`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        .then((res) => {
+          setTweets(res.data);
+        })
+        .catch((error) => {
+          console.error("Erreur lors du chargement des tweets :", error);
+        });
+    }
+  }, [visitedUser, token]);
 
   const handleFollowToggle = async () => {
     try {
       if (isFollowing) {
-        // Désabonner via l'endpoint "unfollow"
         await axios.post(
           `${API_URL}/api/user/unfollow/${visitedUser._id}`,
           null,
           { headers: { Authorization: `Bearer ${token}` } }
         );
       } else {
-        // S'abonner via l'endpoint "follow"
         await axios.post(
           `${API_URL}/api/user/follow/${visitedUser._id}`,
           null,
           { headers: { Authorization: `Bearer ${token}` } }
         );
       }
-      setIsFollowing(!isFollowing);
+      // Recharger le profil visité pour mettre à jour les followers et isFollowing
+      await fetchVisitedUser();
     } catch (error) {
       console.error("Erreur lors du suivi/désuivi :", error);
     }
@@ -97,20 +121,17 @@ const UserProfile = () => {
     if (!visitedUser) return;
     try {
       if (newValue === 0) {
-        // Charger les tweets
         const res = await axios.get(
           `${API_URL}/api/tweet/user/${visitedUser._id}/tweets`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setTweets(res.data);
       } else if (newValue === 1) {
-        // Charger les tweets likés
         const res = await axios.get(`${API_URL}/api/tweet/likedTweetsByUser`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setLikedTweets(res.data);
       } else if (newValue === 2) {
-        // Charger les tweets commentés
         const res = await axios.get(
           `${API_URL}/api/tweet/commentedTweetsByUser`,
           { headers: { Authorization: `Bearer ${token}` } }
@@ -216,10 +237,10 @@ const UserProfile = () => {
           </Typography>
           <Box mt={1} display="flex" gap={2}>
             <Button onClick={handleOpenFollowers} variant="text">
-              Abonnés : {visitedUser.followers?.length || 0}
+              Abonnés : {visitedUser.followers ? visitedUser.followers.length : 0}
             </Button>
             <Button onClick={handleOpenFollowing} variant="text">
-              Abonnements : {visitedUser.following?.length || 0}
+              Abonnements : {visitedUser.following ? visitedUser.following.length : 0}
             </Button>
           </Box>
         </Grid>
