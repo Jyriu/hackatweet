@@ -1,84 +1,140 @@
-import React, { useState } from "react";
-import { Container, Typography, Box, Alert } from "@mui/material";
-import { useTweets } from "../hooks/useTweets";
-import NewTweet from "../components/NewTweet";
-import { useAuth } from "../hooks/useAuth";
-import axios from "axios";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Container, Typography, Box } from "@mui/material";
+import TweetCreation from "../components/TweetCreation";
+import TweetList from "../components/TweetList";
+import { fetchTweetsFromApi, saveEmotionToApi } from "../services/api";
+import useEmotionDetection from "../hooks/useEmotionDetection";
 
 
 const Home = () => {
-  console.log("Rendu du composant Home - Test avec NewTweet simplifié");
-  
-  // Utiliser le hook auth pour obtenir l'utilisateur actuel
-  const { user } = useAuth();
-  console.log("Utilisateur connecté:", user);
-  
-  // Utiliser le hook useTweets pour récupérer les tweets uniquement
-  const { tweets, loading, error, createTweet } = useTweets();
-  console.log("Tweets chargés:", tweets);
-  
-  // State pour suivre les erreurs de création de tweet
-  const [tweetError, setTweetError] = useState(null);
-  
-  // Function to add a new tweet
-  const addNewTweet = async (newTweetData) => {
-    try {
-      console.log("Tentative de création d'un tweet avec:", newTweetData);
-      
-      if (!user) {
-        setTweetError("Vous devez être connecté pour tweeter");
-        return;
+  const [tweets, setTweets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [visibleTweetId, setVisibleTweetId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const isFetching = useRef(false);
+  const lastTweetRef = useRef(null);
+  const user = JSON.parse(localStorage.getItem("user")); // Parse the user object
+  const userId = user?.id;
+
+  // Use the emotion detection hook
+  const { emotionData, videoRef, canvasRef } = useEmotionDetection();
+
+  // Fetch tweets from the backend
+  const fetchTweets = useCallback(
+    async (pageNumber) => {
+      if (isFetching.current || !hasMore) return;
+      isFetching.current = true;
+
+      try {
+        setLoading(true);
+        const data = await fetchTweetsFromApi(pageNumber, userId);
+        if (data && data.tweets.length > 0) {
+          setTweets((prevTweets) => {
+            const newTweets = data.tweets.filter(
+              (newTweet) => !prevTweets.some((existingTweet) => existingTweet._id === newTweet._id)
+            );
+            return [...prevTweets, ...newTweets];
+          });
+          setHasMore(data.hasMore);
+        } else {
+          setHasMore(false);
+        }
+      } catch (error) {
+        console.error("Error fetching tweets:", error);
+      } finally {
+        setLoading(false);
+        isFetching.current = false;
       }
-      
-      // Les hashtags sont extraits automatiquement côté serveur
-      const simplifiedTweetData = {
-        content: newTweetData.content,
-        // On pourrait ajouter mediaUrl si on avait des médias
-      };
-      
-      console.log("Données simplifiées pour l'API:", simplifiedTweetData);
-      
-      const result = await createTweet(simplifiedTweetData);
-      console.log("Résultat de la création:", result);
-      setTweetError(null);
+    },
+    [hasMore, userId]
+  );
+
+  // Load initial tweets
+  useEffect(() => {
+    fetchTweets(1);
+  }, [fetchTweets]);
+
+  // Load more tweets when the page changes
+  useEffect(() => {
+    if (page > 1) fetchTweets(page);
+  }, [page, fetchTweets]);
+
+  // Add a new tweet
+  const addNewTweet = (newTweet) => {
+    setTweets((prevTweets) => [newTweet, ...prevTweets]);
+  };
+
+  // Save emotion for a tweet
+  const saveEmotion = async (tweetId, emotion) => {
+    try {
+      await saveEmotionToApi(userId, tweetId, emotion);
     } catch (error) {
-      console.error("Error creating tweet:", error);
-      setTweetError("Impossible de créer le tweet. Vérifiez la console pour plus d'informations.");
+      console.error("Error saving emotion:", error);
     }
   };
-  
+
+  // Handle scroll event
+  const handleScroll = useCallback(() => {
+    const lastTweetId = tweets[tweets.length - 1]?._id;
+
+    if (lastTweetId && lastTweetId !== lastTweetRef.current) {
+      lastTweetRef.current = lastTweetId;
+      setPage((prevPage) => prevPage + 1);
+    }
+  }, [tweets]);
+
   return (
-    <Container>
-      <Box mt={4}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Accueil - Version avec NewTweet simplifié
-        </Typography>
-        
-        {tweetError && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setTweetError(null)}>
-            {tweetError}
-          </Alert>
-        )}
-        
-        <NewTweet onAddTweet={addNewTweet} />
-        
-        <Typography variant="body1" mt={2}>
-          Nombre de tweets chargés: {tweets ? tweets.length : 0}
-        </Typography>
-        
-        {loading && (
-          <Typography variant="body1" color="primary">
-            Chargement des tweets en cours...
+    <Box
+      sx={{
+        height: "100vh",
+        backgroundColor: "#f5f8fa", // Background color for the entire page
+      }}
+    >
+      {/* Bigger Container */}
+      <Container
+        maxWidth="md"
+        sx={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          padding: 0,
+          backgroundColor: "#f5f8fa", // Same background color
+        }}
+      >
+        {/* Header */}
+        <Box
+          sx={{
+            backgroundColor: "#f5f8fa",
+            borderBottom: "1px solid #e0e0e0",
+            padding: 2,
+            zIndex: 1000,
+          }}
+        >
+          <Typography variant="h5" fontWeight="bold" color="#545f69">
+            Fil d'actualité
           </Typography>
-        )}
-        
-        {error && (
-          <Typography variant="body1" color="error">
-            Erreur: {error}
-          </Typography>
-        )}
-      </Box>
-    </Container>
+        </Box>
+
+        {/* Tweet Creation Section */}
+        <TweetCreation onAddTweet={addNewTweet} />
+
+        {/* Tweet List Section */}
+        <TweetList
+          tweets={tweets}
+          loading={loading}
+          hasMore={hasMore}
+          onScroll={handleScroll}
+          onSaveEmotion={saveEmotion}
+          visibleTweetId={visibleTweetId}
+          emotionData={emotionData}
+        />
+
+        {/* Hidden Video and Canvas Elements */}
+        <video ref={videoRef} autoPlay playsInline style={{ display: "none" }} />
+        <canvas ref={canvasRef} style={{ display: "none" }} />
+      </Container>
+    </Box>
   );
 };
 

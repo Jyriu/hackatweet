@@ -15,11 +15,9 @@ require('./models/Replies');
 require('./models/Notification');
 require('./models/Emotion');
 require('./models/Message');
-require('./models/Conversation');
 const User = mongoose.model('User');
 const Notification = mongoose.model('Notification');
 const Message = mongoose.model('Message');
-const Conversation = mongoose.model('Conversation');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -72,7 +70,6 @@ const emotionRoutes = require('./routes/emotionRoutes');
 const searchRoutes = require('./routes/searchRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const messageRoutes = require('./routes/messageRoutes');
-const conversationRoutes = require('./routes/conversationRoutes');
 
 // Application des routes
 app.use('/api/auth', authRoutes);
@@ -82,7 +79,6 @@ app.use('/api/emotions', emotionRoutes)
 app.use('/api/search', searchRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/messages', messageRoutes);
-app.use('/api/conversations', conversationRoutes);
 
 
 const createTweets = async () => {
@@ -175,62 +171,43 @@ io.on('connection', (socket) => {
   socket.emit('connection_established', { message: 'Connected to notification service' });
   
   // SYSTÈME DE MESSAGERIE
-  // Envoi d'un message via socket
+  // Envoi d'un message à un utilisateur
   socket.on('send_message', async (data) => {
     try {
-      const { recipientId, content, conversationId } = data;
+      const { recipientId, content } = data;
       
-      if ((!recipientId && !conversationId) || !content) {
+      if (!recipientId || !content) {
         return socket.emit('message_error', { error: 'Données manquantes' });
       }
       
-      // Trouver ou créer la conversation
-      let conversation;
-      
-      if (conversationId) {
-        // Vérifier que l'utilisateur est membre de la conversation
-        conversation = await Conversation.findOne({
-          _id: conversationId,
-          participants: socket.user._id
-        });
-        
-        if (!conversation) {
-          return socket.emit('message_error', { error: 'Conversation non trouvée ou accès non autorisé' });
-        }
-      } else {
-        // Créer ou trouver une conversation privée entre deux utilisateurs
-        conversation = await Conversation.findOrCreatePrivate(socket.user._id, recipientId);
-      }
-      
-      // Créer et enregistrer le message
+      // Créer et sauvegarder le message
       const newMessage = new Message({
-        conversation: conversation._id,
         sender: socket.user._id,
-        recipient: conversation.isGroup ? undefined : recipientId,
-        content,
-        isGroupMessage: conversation.isGroup
+        recipient: recipientId,
+        content
       });
       
       await newMessage.save();
       
       // Enrichir les données du message avec les informations de l'expéditeur
-      await newMessage.populate('sender', '_id username avatar');
+      const messageWithSender = {
+        ...newMessage._doc,
+        sender: {
+          _id: socket.user._id,
+          username: socket.user.username
+        }
+      };
       
       // Envoyer le message à l'expéditeur pour confirmation
-      socket.emit('message_sent', newMessage);
+      socket.emit('message_sent', messageWithSender);
       
-      // Envoyer le message à tous les participants de la conversation
-      for (const participantId of conversation.participants) {
-        // Ne pas renvoyer à l'expéditeur
-        if (participantId.toString() === socket.user._id.toString()) continue;
-        
-        const recipientSocketId = userSocketMap[participantId.toString()];
-        if (recipientSocketId) {
-          io.to(recipientSocketId).emit('new_message', newMessage);
-        }
+      // Envoyer le message au destinataire s'il est connecté
+      const recipientSocketId = userSocketMap[recipientId];
+      if (recipientSocketId) {
+        io.to(recipientSocketId).emit('new_message', messageWithSender);
       }
       
-      console.log(`📨 [Message] De ${socket.user.username} dans conversation ${conversation._id}`);
+      console.log(`📨 [Message] De ${socket.user.username} à ${recipientId}`);
     } catch (error) {
       console.error('Erreur envoi message:', error);
       socket.emit('message_error', { error: error.message });
@@ -242,77 +219,24 @@ io.on('connection', (socket) => {
     try {
       const { messageId } = data;
       
-      const message = await Message.findById(messageId);
+      // Mettre à jour le message
+      const message = await Message.findByIdAndUpdate(
+        messageId,
+        { read: true },
+        { new: true }
+      );
       
       if (!message) {
         return socket.emit('message_error', { error: 'Message non trouvé' });
       }
       
-      // Vérifier que l'utilisateur fait partie de la conversation
-      const conversation = await Conversation.findOne({
-        _id: message.conversation,
-        participants: socket.user._id
-      });
-      
-      if (!conversation) {
-        return socket.emit('message_error', { error: 'Accès non autorisé à ce message' });
-      }
-      
-      // Mettre à jour le message
-      message.read = true;
-      if (!message.readBy.includes(socket.user._id)) {
-        message.readBy.push(socket.user._id);
-      }
-      await message.save();
-      
-      // Réinitialiser le compteur de messages non lus pour cet utilisateur
-      await conversation.resetUnread(socket.user._id);
-      
       // Notifier l'expéditeur que le message a été lu
       const senderSocketId = userSocketMap[message.sender.toString()];
       if (senderSocketId) {
-        io.to(senderSocketId).emit('message_read', { 
-          messageId,
-          readBy: socket.user._id
-        });
+        io.to(senderSocketId).emit('message_read', { messageId });
       }
     } catch (error) {
       console.error('Erreur marquer message comme lu:', error);
-      socket.emit('message_error', { error: error.message });
-    }
-  });
-  
-  // Signaler "En train d'écrire"
-  socket.on('typing', async (data) => {
-    try {
-      const { conversationId } = data;
-      
-      // Vérifier que l'utilisateur fait partie de la conversation
-      const conversation = await Conversation.findOne({
-        _id: conversationId,
-        participants: socket.user._id
-      });
-      
-      if (!conversation) {
-        return socket.emit('message_error', { error: 'Conversation non trouvée' });
-      }
-      
-      // Envoyer l'événement "typing" à tous les autres participants
-      for (const participantId of conversation.participants) {
-        // Ne pas envoyer à soi-même
-        if (participantId.toString() === socket.user._id.toString()) continue;
-        
-        const recipientSocketId = userSocketMap[participantId.toString()];
-        if (recipientSocketId) {
-          io.to(recipientSocketId).emit('user_typing', {
-            conversationId,
-            userId: socket.user._id,
-            username: socket.user.username
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Erreur notification typing:', error);
       socket.emit('message_error', { error: error.message });
     }
   });
