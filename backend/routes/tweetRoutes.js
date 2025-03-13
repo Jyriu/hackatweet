@@ -33,5 +33,7 @@ router.get('/commentedTweetsByFollowings', auth, tweetController.getCommentedTwe
 router.get('/gettweet/:id', tweetController.getTweetById);
 router.get('/allTweetsByFollowings', auth, tweetController.getAllTweetsByFollowings);
 router.get('/user/:userId/tweets', auth, tweetController.getTweetsByUser);
-
+router.get("/likedTweetsByUser", auth, tweetController.getLikedTweetsByUser);
+router.get("/commentedTweetsByUser", auth, tweetController.getCommentedTweetsByUser);
+router.get("/bookmarkedTweets", auth, tweetController.getBookmarkedTweets);
 module.exports = router;
