@@ -32,7 +32,7 @@ app.use(express.json());
 
 // Exposer le dossier uploads pour servir les images
 
-app.use('/uploads', express.static(path.join(__dirname, 'upload')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Route de test simple
 // Route pour créer un utilisateur test (temporaire)
