@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Container, Typography, Box,Grid } from "@mui/material";
+import { Container, Typography, Box } from "@mui/material";
 import TweetCreation from "../components/TweetCreation";
 import TweetList from "../components/TweetList";
 import { fetchTweetsFromApi, fetchFollowingTweets, saveEmotionToApi } from "../services/api";
 import useEmotionDetection from "../hooks/useEmotionDetection";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import TrendingHashtags from "../components/trendingHashtags";
 
 const Home = () => {
   const [tweets, setTweets] = useState([]);
@@ -65,11 +64,9 @@ const Home = () => {
     async (pageNumber) => {
       if (isFetching.current || !hasMoreFollowing) return;
       isFetching.current = true;
-
       try {
         setLoading(true);
         const data = await fetchFollowingTweets(pageNumber, userId);
-        // Gérer le cas où data est directement un tableau ou un objet contenant { tweets, hasMore }
         const followingData = data.tweets ? data.tweets : data;
         if (followingData && followingData.length > 0) {
           setFollowingTweets((prev) => {
@@ -78,7 +75,12 @@ const Home = () => {
             );
             return [...prev, ...newTweets];
           });
-          setHasMoreFollowing(data.hasMore !== undefined ? data.hasMore : false);
+          // Calculate hasMoreFollowing using currentPage and totalPages if available
+          if (data.currentPage !== undefined && data.totalPages !== undefined) {
+            setHasMoreFollowing(data.currentPage < data.totalPages);
+          } else {
+            setHasMoreFollowing(data.hasMore !== undefined ? data.hasMore : false);
+          }
         } else {
           setHasMoreFollowing(false);
         }
@@ -165,7 +167,7 @@ const Home = () => {
       }}
     >
       <Container
-        maxWidth="lg"
+        maxWidth="md"
         sx={{
           height: "100%",
           display: "flex",
@@ -174,14 +176,6 @@ const Home = () => {
           backgroundColor: "#f5f8fa",
         }}
       >
-      <Grid container spacing={2}>
-
-        {/* Colonne des hashtags */}
-        <Grid item xs={3}>
-            <TrendingHashtags />
-          </Grid>
-
-        <Grid item xs={9}>
         {/* Tweet Creation Section */}
         <TweetCreation onAddTweet={addNewTweet} />
 
@@ -246,8 +240,6 @@ const Home = () => {
             <canvas ref={canvasRef} style={{ display: "none" }} />
           </>
         )}
-        </Grid>
-        </Grid>  
       </Container>
     </Box>
   );
