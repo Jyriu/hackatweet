@@ -32,7 +32,7 @@ To install and run the project locally, follow these steps:
 
 ## Running the Project
 
-1. 
+1. CAREFUL : use the branch newMain
 
 2. **Install dependencies**:
 
