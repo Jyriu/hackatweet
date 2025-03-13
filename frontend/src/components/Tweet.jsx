@@ -18,7 +18,7 @@ import BookmarkIcon from "@mui/icons-material/Bookmark";
 import RetweetDialog from "./RetweetDialog";
 import { likeTweet, bookmarkTweet } from "../services/api";
 
-const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
+const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(tweet?.userLikes?.length || 0);
   const [retweeted, setRetweeted] = useState(false);
@@ -29,10 +29,10 @@ const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [openRetweetDialog, setOpenRetweetDialog] = useState(false);
+  const current_user = user;
+  const currentUserId = current_user?.id;
 
   useEffect(() => {
-    const user = localStorage.getItem("user") ;
-    const currentUserId = user?.id ;
     setLiked(tweet?.userLikes?.includes(currentUserId));
     setIsBookmarked(tweet?.usersave?.includes(currentUserId));
   }, [tweet?.userLikes, tweet?.usersave]);
@@ -179,7 +179,15 @@ const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
 
         <Box sx={{ mt: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           {/* Like Button with Red Background */}
-          <Badge badgeContent={likeCount} color="error">
+          <Badge
+            badgeContent={likeCount}
+            sx={{
+              "& .MuiBadge-badge": {
+                backgroundColor: liked ? "red" : "default", // Red background for the badge
+                color: "white", // White text for better contrast
+              },
+            }}
+          >
             <IconButton
               onClick={handleLike}
               sx={{
