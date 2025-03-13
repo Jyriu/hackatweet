@@ -6,6 +6,7 @@ import {
   Navigate,
   useNavigate,
   Link,
+  useParams,
 } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -43,7 +44,6 @@ import {
 import { loadUser, logoutUser } from "./redux/actions/userActions";
 import { loadUnreadCount } from "./redux/actions/notificationActions";
 
-// URL de base du backend
 const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
 
 // Composant pour les routes protégées
@@ -64,7 +64,7 @@ const AuthRoute = ({ element }) => {
   return element;
 };
 
-// Boutons de navigation
+// Composant pour les boutons de navigation
 function NavigationButtons() {
   const user = useSelector((state) => state.user.currentUser);
   const unreadCount = useSelector((state) => state.notifications.unreadCount);
@@ -115,7 +115,7 @@ function NavigationButtons() {
   );
 }
 
-// Bouton de déconnexion avec icône
+// Bouton de déconnexion
 function LogoutButton() {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.user.currentUser);
@@ -141,7 +141,18 @@ function LogoutButton() {
   ) : null;
 }
 
-// Composant d'application principale avec navigation
+// Composant wrapper pour la page UserProfile
+// Si le pseudo dans l'URL correspond à celui de l'utilisateur connecté,
+// redirige vers la page /profile
+const UserProfileWrapper = () => {
+  const { username } = useParams();
+  const currentUser = useSelector((state) => state.user.currentUser);
+  if (currentUser && currentUser.username === username) {
+    return <Navigate to="/profile" replace />;
+  }
+  return <UserProfile />;
+};
+
 function AppContent() {
   const user = useSelector((state) => state.user.currentUser);
 
@@ -214,7 +225,7 @@ function AppContent() {
           />
           <Route
             path="/user/:username"
-            element={<ProtectedRoute element={<UserProfile />} />}
+            element={<ProtectedRoute element={<UserProfileWrapper />} />}
           />
           <Route path="/login" element={<Navigate to="/auth" replace />} />
           <Route path="/register" element={<Navigate to="/auth" replace />} />
@@ -239,10 +250,7 @@ const App = () => {
 
   useEffect(() => {
     if (user) {
-      // Charger le nombre de notifications non lues
       dispatch(loadUnreadCount());
-      
-      // Connecter le socket si nécessaire
       if (!isConnected) {
         dispatch(connectToSocket());
       }

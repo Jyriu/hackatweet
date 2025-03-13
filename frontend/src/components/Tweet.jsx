@@ -22,6 +22,7 @@ const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
   const [openRetweetDialog, setOpenRetweetDialog] = useState(false);
   const currentUserId = user?.id;
 
+  const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
   useEffect(() => {
     setLiked(tweet?.userLikes?.includes(currentUserId));
     setIsBookmarked(tweet?.usersave?.includes(currentUserId));
