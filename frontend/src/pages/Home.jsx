@@ -20,7 +20,7 @@ const Home = () => {
   const isFetching = useRef(false);
   const lastTweetRef = useRef(null);
   const user = JSON.parse(localStorage.getItem("user"));
-  const userId = user?.id;
+  const userId = user?._id;
   const navigate = useNavigate();
 
   const { emotionData, videoRef, canvasRef } = useEmotionDetection();
