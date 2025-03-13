@@ -34,7 +34,7 @@ const Home = () => {
       try {
         setLoading(true);
         const data = await fetchTweetsFromApi(pageNumber, userId);
-        if (data && data.tweets.length > 0) {
+        if (data && data?.tweets?.length > 0) {
           setTweets((prevTweets) => {
             const newTweets = data.tweets.filter(
               (newTweet) => !prevTweets.some((existingTweet) => existingTweet._id === newTweet._id)
