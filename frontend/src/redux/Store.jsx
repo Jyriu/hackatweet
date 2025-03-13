@@ -99,48 +99,124 @@ const messageSlice = createSlice({
   },
   reducers: {
     setConversations: (state, action) => {
-      const conversationsMap = {};
-      action.payload.forEach(conv => {
-        conversationsMap[conv._id] = conv;
-      });
-      state.conversations = conversationsMap;
+      if (Array.isArray(action.payload)) {
+        // Convertir le tableau en objet avec les IDs comme clés
+        const conversationsMap = {};
+        action.payload.forEach(conv => {
+          if (conv._id) {
+            // Si la conversation existe déjà, préserver ses messages
+            if (state.conversations[conv._id]) {
+              conversationsMap[conv._id] = {
+                ...conv,
+                messages: state.conversations[conv._id].messages || []
+              };
+            } else {
+              conversationsMap[conv._id] = {
+                ...conv,
+                messages: []
+              };
+            }
+          }
+        });
+        state.conversations = conversationsMap;
+      } else if (typeof action.payload === 'object' && action.payload !== null) {
+        // Si c'est un objet (probablement un mapping de conversations)
+        state.conversations = action.payload;
+      }
     },
     setActiveConversation: (state, action) => {
       state.activeConversation = action.payload;
+      
+      // Si une conversation active est définie, réinitialiser son compteur de messages non lus
+      if (action.payload && state.conversations[action.payload]) {
+        state.conversations[action.payload].unreadCount = 0;
+      }
     },
     addMessage: (state, action) => {
       const { conversationId, message } = action.payload;
+      
+      // S'assurer que la conversation existe
       if (!state.conversations[conversationId]) {
+        // Créer une nouvelle entrée de conversation si elle n'existe pas
+        const participant = message.isFromCurrentUser ? message.recipient : message.sender;
         state.conversations[conversationId] = {
           _id: conversationId,
+          participant,
           messages: [],
-          participants: message.participants || [],
           unreadCount: 0,
+          lastMessage: null,
+          updatedAt: new Date().toISOString()
         };
       }
-      state.conversations[conversationId].messages = [
-        ...state.conversations[conversationId].messages || [],
-        message
-      ];
       
-      if (state.activeConversation !== conversationId && !message.isFromCurrentUser) {
-        state.conversations[conversationId].unreadCount = 
-          (state.conversations[conversationId].unreadCount || 0) + 1;
+      // S'assurer que le tableau de messages existe
+      if (!state.conversations[conversationId].messages) {
+        state.conversations[conversationId].messages = [];
       }
-    },
-    markMessageAsRead: (state, action) => {
-      const { conversationId, messageId, userId } = action.payload;
-      if (state.conversations[conversationId]) {
-        const message = state.conversations[conversationId].messages.find(m => m._id === messageId);
-        if (message && !message.readBy.includes(userId)) {
-          message.readBy.push(userId);
+      
+      // Vérifier si le message existe déjà (éviter les doublons)
+      const messageExists = state.conversations[conversationId].messages.some(
+        m => m._id === message._id
+      );
+      
+      if (!messageExists) {
+        // Ajouter le message
+        state.conversations[conversationId].messages.push(message);
+        
+        // Mettre à jour le dernier message
+        state.conversations[conversationId].lastMessage = message;
+        state.conversations[conversationId].updatedAt = message.createdAt || new Date().toISOString();
+        
+        // Incrémenter le compteur de messages non lus si nécessaire
+        if (!message.isFromCurrentUser && state.activeConversation !== conversationId) {
+          state.conversations[conversationId].unreadCount = 
+            (state.conversations[conversationId].unreadCount || 0) + 1;
         }
       }
     },
-    resetUnreadCount: (state, action) => {
-      const conversationId = action.payload;
+    markConversationAsRead: (state, action) => {
+      const { conversationId, count, userId } = action.payload;
+      
       if (state.conversations[conversationId]) {
-        state.conversations[conversationId].unreadCount = 0;
+        // Si nous avons un décompte, c'est notre propre action de lecture
+        if (count !== undefined) {
+          // Marquer tous les messages comme lus
+          if (state.conversations[conversationId].messages) {
+            state.conversations[conversationId].messages.forEach(msg => {
+              if (!msg.isFromCurrentUser && !msg.read) {
+                msg.read = true;
+              }
+            });
+          }
+          
+          // Réinitialiser le compteur de messages non lus
+          state.conversations[conversationId].unreadCount = 0;
+        } 
+        // Si nous avons un userId, c'est une notification que l'autre utilisateur a lu nos messages
+        else if (userId) {
+          if (state.conversations[conversationId].messages) {
+            state.conversations[conversationId].messages.forEach(msg => {
+              if (msg.isFromCurrentUser) {
+                msg.read = true;
+              }
+            });
+          }
+        }
+      }
+    },
+    setMessagesForConversation: (state, action) => {
+      const { conversationId, messages } = action.payload;
+      
+      if (state.conversations[conversationId]) {
+        state.conversations[conversationId].messages = messages.map(msg => ({
+          ...msg,
+          isFromCurrentUser: msg.sender._id === state.currentUser?.id
+        }));
+        
+        // Réinitialiser le compteur de messages non lus si c'est la conversation active
+        if (state.activeConversation === conversationId) {
+          state.conversations[conversationId].unreadCount = 0;
+        }
       }
     },
     setMessageLoading: (state, action) => {
@@ -148,7 +224,13 @@ const messageSlice = createSlice({
     },
     setMessageError: (state, action) => {
       state.error = action.payload;
-    }
+    },
+    resetUnreadCount: (state, action) => {
+      const conversationId = action.payload;
+      if (state.conversations[conversationId]) {
+        state.conversations[conversationId].unreadCount = 0;
+      }
+    },
   },
 });
 
@@ -202,10 +284,11 @@ export const {
   setConversations, 
   setActiveConversation, 
   addMessage, 
-  markMessageAsRead,
-  resetUnreadCount,
   setMessageLoading,
-  setMessageError 
+  setMessageError,
+  markConversationAsRead,
+  setMessagesForConversation,
+  resetUnreadCount
 } = messageSlice.actions;
 export const { 
   setConnected, 

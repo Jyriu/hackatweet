@@ -3,6 +3,35 @@ const mongoose = require('mongoose');
 const Tweet = mongoose.model('Tweet');
 const User = mongoose.model('User');
 
+// Recherche simple d'utilisateurs
+exports.searchUsers = async (req, res) => {
+    try {
+        const query = req.query.q;
+
+        if (!query) {
+            return res.status(400).json({ message: 'Terme de recherche requis' });
+        }
+
+        const regex = new RegExp(query, 'i');
+        const searchCriteria = {
+            $or: [
+                { username: regex },
+                { nom: regex },
+                { prenom: regex }
+            ]
+        };
+
+        const users = await User.find(searchCriteria)
+            .select('_id username nom prenom photo')
+            .limit(10);
+
+        res.json(users);
+    } catch (error) {
+        console.error('Erreur lors de la recherche d\'utilisateurs:', error);
+        res.status(500).json({ message: 'Erreur lors de la recherche d\'utilisateurs', error: error.message });
+    }
+};
+
 // Recherche avancée
 exports.advancedSearch = async (req, res) => {
     try {
