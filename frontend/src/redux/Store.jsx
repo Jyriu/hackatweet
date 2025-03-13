@@ -82,6 +82,9 @@ const notificationSlice = createSlice({
     },
     setNotificationError: (state, action) => {
       state.error = action.payload;
+    },
+    setUnreadCount: (state, action) => {
+      state.unreadCount = action.payload;
     }
   },
 });
@@ -192,7 +195,8 @@ export const {
   markAsRead, 
   markAllAsRead,
   setNotificationLoading,
-  setNotificationError 
+  setNotificationError,
+  setUnreadCount
 } = notificationSlice.actions;
 export const { 
   setConversations, 
