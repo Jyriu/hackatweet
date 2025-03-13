@@ -20,7 +20,8 @@ const Home = () => {
   const lastTweetRef = useRef(null);
   const user = useSelector((state) => state.user.currentUser);
   //const user = JSON.parse(localStorage.getItem("user")); // Parse the user object
-  const userId = user?._id;
+  const userId = user?._id ?? user?.id;
+
   const navigate = useNavigate();
 
 
