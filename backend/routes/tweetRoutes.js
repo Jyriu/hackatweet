@@ -32,5 +32,6 @@ router.post('/signet/:id', auth, tweetController.bookmarkTweet);
 router.get('/commentedTweetsByFollowings', auth, tweetController.getCommentedTweetsByFollowings);
 router.get('/gettweet/:id', tweetController.getTweetById);
 router.get('/allTweetsByFollowings', auth, tweetController.getAllTweetsByFollowings);
+router.get('/user/:userId/tweets', auth, tweetController.getTweetsByUser);
 
 module.exports = router;
