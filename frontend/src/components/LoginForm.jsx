@@ -28,10 +28,7 @@ const LoginForm = ({ onSuccess }) => {
     }
     
     try {
-      console.log("Tentative de connexion...");
       await login({ email, password });
-      console.log("Connexion réussie");
-      
       // Appeler la fonction de réussite fournie par le parent
       if (onSuccess) {
         onSuccess();
