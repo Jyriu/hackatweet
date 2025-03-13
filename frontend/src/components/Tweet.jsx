@@ -31,8 +31,8 @@ const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
   const [openRetweetDialog, setOpenRetweetDialog] = useState(false);
 
   useEffect(() => {
-    const user = localStorage.getItem("user") ;
-    const currentUserId = user?.id ;
+    const user = JSON.parse(localStorage.getItem("user"));
+    const currentUserId = user?.id;
     setLiked(tweet?.userLikes?.includes(currentUserId));
     setIsBookmarked(tweet?.usersave?.includes(currentUserId));
   }, [tweet?.userLikes, tweet?.usersave]);
@@ -179,7 +179,15 @@ const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
 
         <Box sx={{ mt: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           {/* Like Button with Red Background */}
-          <Badge badgeContent={likeCount} color="error">
+          <Badge
+            badgeContent={likeCount}
+            sx={{
+              "& .MuiBadge-badge": {
+                backgroundColor: liked ? "red" : "default", // Red background for the badge
+                color: "white", // White text for better contrast
+              },
+            }}
+          >
             <IconButton
               onClick={handleLike}
               sx={{
