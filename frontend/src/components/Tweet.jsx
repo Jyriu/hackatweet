@@ -31,7 +31,8 @@ const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
   const [openRetweetDialog, setOpenRetweetDialog] = useState(false);
 
   useEffect(() => {
-    const currentUserId = localStorage.getItem("userId");
+    const user = localStorage.getItem("user") ;
+    const currentUserId = user?.id ;
     setLiked(tweet?.userLikes?.includes(currentUserId));
     setIsBookmarked(tweet?.usersave?.includes(currentUserId));
   }, [tweet?.userLikes, tweet?.usersave]);
@@ -177,25 +178,38 @@ const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
         {tweet.originalTweet && renderOriginalTweet(tweet.originalTweet)}
 
         <Box sx={{ mt: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {/* Like Button with Red Background */}
           <Badge badgeContent={likeCount} color="error">
-            <IconButton onClick={handleLike} color={liked ? "error" : "default"}>
-              <FavoriteIcon />
+            <IconButton
+              onClick={handleLike}
+              sx={{
+                backgroundColor: liked ? "rgba(255, 0, 0, 0.1)" : "transparent",
+                borderRadius: "50%",
+                "&:hover": {
+                  backgroundColor: liked ? "rgba(255, 0, 0, 0.2)" : "rgba(0, 0, 0, 0.04)",
+                },
+              }}
+            >
+              <FavoriteIcon sx={{ color: liked ? "red" : "inherit" }} />
             </IconButton>
           </Badge>
 
+          {/* Retweet Button */}
           <Badge badgeContent={localRetweetCount} color="primary">
             <IconButton onClick={handleRetweet} color={retweeted ? "success" : "default"}>
               <RepeatIcon />
             </IconButton>
           </Badge>
 
+          {/* Comment Button */}
           <IconButton onClick={() => setShowComments(!showComments)} color="primary">
             <ChatBubbleOutlineIcon />
           </IconButton>
 
+          {/* Bookmark Button */}
           <Badge badgeContent={bookmarkCount} color="secondary">
-            <IconButton onClick={handleBookmark}>
-              {isBookmarked ? <BookmarkIcon sx={{ color: 'blue' }}/> : <BookmarkBorderIcon />}
+            <IconButton onClick={handleBookmark} color={isBookmarked ? "primary" : "default"}>
+              {isBookmarked ? <BookmarkIcon /> : <BookmarkBorderIcon />}
             </IconButton>
           </Badge>
         </Box>
