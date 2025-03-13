@@ -22,7 +22,8 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import axios from "axios";
 import { useSelector } from "react-redux";
-import Tweet from "../components/Tweet";
+import TweetList from "../components/TweetList";
+import useEmotionDetection from "../hooks/useEmotionDetection";
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
 
@@ -42,12 +43,12 @@ const UserProfile = () => {
   const [loadingFollowers, setLoadingFollowers] = useState(false);
   const [loadingFollowing, setLoadingFollowing] = useState(false);
   const token = useSelector((state) => state.user.token);
-
-  // Utiliser Redux pour currentUser
   const currentUser = useSelector((state) => state.user.currentUser);
   const currentUserId = currentUser ? currentUser._id : null;
 
-  // Fonction pour récupérer le profil de l'utilisateur visité
+  // Emotion detection
+  const { emotionData, videoRef, canvasRef } = useEmotionDetection();
+
   const fetchVisitedUser = async () => {
     try {
       const userResponse = await axios.get(
@@ -69,7 +70,6 @@ const UserProfile = () => {
     }
   };
 
-  // Charger visitedUser dès que le username, token ou currentUserId change
   useEffect(() => {
     const fetchData = async () => {
       await fetchVisitedUser();
@@ -78,7 +78,6 @@ const UserProfile = () => {
     fetchData();
   }, [username, token, currentUserId]);
 
-  // Charger les tweets lorsque visitedUser est disponible
   useEffect(() => {
     if (visitedUser) {
       axios
@@ -109,7 +108,6 @@ const UserProfile = () => {
           { headers: { Authorization: `Bearer ${token}` } }
         );
       }
-      // Recharger le profil visité pour mettre à jour les followers et isFollowing
       await fetchVisitedUser();
     } catch (error) {
       console.error("Erreur lors du suivi/désuivi :", error);
@@ -193,6 +191,30 @@ const UserProfile = () => {
     setOpenFollowing(false);
   };
 
+  const handleRetweet = (newRetweet) => {
+    setTweets((prevTweets) => [newRetweet, ...prevTweets]);
+  };
+
+  const handleUpdateTweet = (updatedTweet) => {
+    setTweets((prevTweets) =>
+      prevTweets.map((tweet) =>
+        tweet._id === updatedTweet._id ? updatedTweet : tweet
+      )
+    );
+  };
+
+  const saveEmotion = async (tweetId, emotion) => {
+    try {
+      await axios.post(
+        `${API_URL}/api/tweet/saveEmotion`,
+        { userId: currentUserId, tweetId, emotion },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (error) {
+      console.error("Error saving emotion:", error);
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
@@ -213,7 +235,6 @@ const UserProfile = () => {
 
   return (
     <Container maxWidth="md" sx={{ mt: 4 }}>
-      {/* En-tête du profil de l'utilisateur visité */}
       <Grid container spacing={2} alignItems="center">
         <Grid item>
           <Link to={`/user/${visitedUser.username}`} style={{ textDecoration: "none", color: "inherit" }}>
@@ -255,7 +276,6 @@ const UserProfile = () => {
         </Grid>
       </Grid>
 
-      {/* Onglets pour afficher Tweets, Likés, Commentés */}
       <Box sx={{ mt: 3 }}>
         <Tabs value={selectedTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
           <Tab label="Tweets" />
@@ -264,42 +284,47 @@ const UserProfile = () => {
         </Tabs>
         <Box sx={{ mt: 2 }}>
           {selectedTab === 0 && (
-            <>
-              {tweets.length > 0 ? (
-                tweets.map((tweet) => <Tweet key={tweet._id} tweet={tweet} />)
-              ) : (
-                <Typography variant="body1" color="textSecondary">
-                  Cet utilisateur n'a pas encore tweeté.
-                </Typography>
-              )}
-            </>
+            <TweetList
+              tweets={tweets}
+              loading={loading}
+              hasMore={false}
+              user={currentUser}
+              onSaveEmotion={saveEmotion}
+              visibleTweetId={null}
+              emotionData={emotionData}
+              onRetweet={handleRetweet}
+              onUpdateTweet={handleUpdateTweet}
+            />
           )}
           {selectedTab === 1 && (
-            <>
-              {likedTweets.length > 0 ? (
-                likedTweets.map((tweet) => <Tweet key={tweet._id} tweet={tweet} />)
-              ) : (
-                <Typography variant="body1" color="textSecondary">
-                  Aucun tweet liké.
-                </Typography>
-              )}
-            </>
+            <TweetList
+              tweets={likedTweets}
+              loading={loading}
+              hasMore={false}
+              user={currentUser}
+              onSaveEmotion={saveEmotion}
+              visibleTweetId={null}
+              emotionData={emotionData}
+              onRetweet={handleRetweet}
+              onUpdateTweet={handleUpdateTweet}
+            />
           )}
           {selectedTab === 2 && (
-            <>
-              {commentedTweets.length > 0 ? (
-                commentedTweets.map((tweet) => <Tweet key={tweet._id} tweet={tweet} />)
-              ) : (
-                <Typography variant="body1" color="textSecondary">
-                  Aucun tweet commenté.
-                </Typography>
-              )}
-            </>
+            <TweetList
+              tweets={commentedTweets}
+              loading={loading}
+              hasMore={false}
+              user={currentUser}
+              onSaveEmotion={saveEmotion}
+              visibleTweetId={null}
+              emotionData={emotionData}
+              onRetweet={handleRetweet}
+              onUpdateTweet={handleUpdateTweet}
+            />
           )}
         </Box>
       </Box>
 
-      {/* Dialog pour afficher la liste des abonnés */}
       <Dialog open={openFollowers} onClose={handleCloseFollowers} fullWidth maxWidth="sm">
         <DialogTitle>
           Abonnés
@@ -338,7 +363,6 @@ const UserProfile = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog pour afficher la liste des abonnements */}
       <Dialog open={openFollowing} onClose={handleCloseFollowing} fullWidth maxWidth="sm">
         <DialogTitle>
           Abonnements
@@ -376,6 +400,10 @@ const UserProfile = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Hidden Video and Canvas Elements */}
+      <video ref={videoRef} autoPlay playsInline style={{ display: "none" }} />
+      <canvas ref={canvasRef} style={{ display: "none" }} />
     </Container>
   );
 };

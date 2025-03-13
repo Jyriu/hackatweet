@@ -23,6 +23,7 @@ const Home = () => {
   const userId = user?.id;
   const navigate = useNavigate();
 
+
   // Use the emotion detection hook only if `user.cameraOn` is true
   const { emotionData, videoRef, canvasRef } = useEmotionDetection(user?.cameraOn);
 
