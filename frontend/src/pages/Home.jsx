@@ -5,6 +5,7 @@ import TweetList from "../components/TweetList";
 import { fetchTweetsFromApi, saveEmotionToApi } from "../services/api";
 import useEmotionDetection from "../hooks/useEmotionDetection";
 
+
 const Home = () => {
   const [tweets, setTweets] = useState([]);
   const [loading, setLoading] = useState(true);
