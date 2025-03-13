@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Container, Typography, Box,Grid } from "@mui/material";
+import { Container, Typography, Box } from "@mui/material";
 import TweetCreation from "../components/TweetCreation";
 import TweetList from "../components/TweetList";
 import { fetchTweetsFromApi, fetchFollowingTweets, saveEmotionToApi } from "../services/api";
@@ -20,10 +20,8 @@ const Home = () => {
   const isFetching = useRef(false);
   const lastTweetRef = useRef(null);
   const user = useSelector((state) => state.user.currentUser);
-  //const user = JSON.parse(localStorage.getItem("user")); // Parse the user object
   const userId = user?._id;
   const navigate = useNavigate();
-
 
   // Use the emotion detection hook only if `user.cameraOn` is true
   const { emotionData, videoRef, canvasRef } = useEmotionDetection(user?.cameraOn);
@@ -69,7 +67,6 @@ const Home = () => {
       try {
         setLoading(true);
         const data = await fetchFollowingTweets(pageNumber, userId);
-        // Gérer le cas où data est directement un tableau ou un objet contenant { tweets, hasMore }
         const followingData = data.tweets ? data.tweets : data;
         if (followingData && followingData.length > 0) {
           setFollowingTweets((prev) => {
@@ -174,17 +171,6 @@ const Home = () => {
           backgroundColor: "#f5f8fa",
         }}
       >
-      <Grid container spacing={2}>
-
-        {/* Colonne des hashtags */}
-        <Grid item xs={3}>
-            <TrendingHashtags />
-          </Grid>
-
-        <Grid item xs={9}>
-        {/* Tweet Creation Section */}
-        <TweetCreation onAddTweet={addNewTweet} />
-
         {/* Header */}
         <Box
           sx={{
@@ -214,30 +200,75 @@ const Home = () => {
           </Typography>
         </Box>
 
-        {/* Tweet List Section */}
-        {showFollowingTweets ? (
-          <TweetList
-            tweets={followingTweets}
-            loading={loading}
-            hasMore={hasMoreFollowing}
-            user={user}
-            onScroll={handleScroll}
-            onSaveEmotion={saveEmotion}
-            visibleTweetId={visibleTweetId}
-            emotionData={emotionData}
-          />
-        ) : (
-          <TweetList
-            tweets={tweets}
-            loading={loading}
-            hasMore={hasMore}
-            user={user}
-            onScroll={handleScroll}
-            onSaveEmotion={saveEmotion}
-            visibleTweetId={visibleTweetId}
-            emotionData={emotionData}
-          />
-        )}
+        {/* Main Content */}
+        <Box
+          sx={{
+            display: "flex",
+            flexGrow: 1,
+            overflow: "hidden", // Ensure the parent container doesn't scroll
+          }}
+        >
+          {/* Left Side: Trending Hashtags */}
+          <Box
+            sx={{
+              width: "25%", // 25% of the container width
+              padding: 2,
+              overflowY: "auto", // Enable scrolling for trending hashtags
+              borderRight: "1px solid #e0e0e0",
+            }}
+          >
+            <TrendingHashtags />
+          </Box>
+
+          {/* Right Side: Tweet Content */}
+          <Box
+            sx={{
+              width: "75%", // 75% of the container width
+              padding: 2,
+              overflowY: "auto", // Enable scrolling for tweet content
+            }}
+          >
+            {/* Fixed TweetCreation Component */}
+            <Box
+              sx={{
+                position: "sticky",
+                top: 0,
+                backgroundColor: "#f5f8fa",
+                zIndex: 1000,
+                paddingBottom: 2,
+              }}
+            >
+              <TweetCreation onAddTweet={addNewTweet} />
+            </Box>
+
+            {/* Scrollable TweetList Component */}
+            <Box sx={{ marginTop: 2 }}>
+              {showFollowingTweets ? (
+                <TweetList
+                  tweets={followingTweets}
+                  loading={loading}
+                  hasMore={hasMoreFollowing}
+                  user={user}
+                  onScroll={handleScroll}
+                  onSaveEmotion={saveEmotion}
+                  visibleTweetId={visibleTweetId}
+                  emotionData={emotionData}
+                />
+              ) : (
+                <TweetList
+                  tweets={tweets}
+                  loading={loading}
+                  hasMore={hasMore}
+                  user={user}
+                  onScroll={handleScroll}
+                  onSaveEmotion={saveEmotion}
+                  visibleTweetId={visibleTweetId}
+                  emotionData={emotionData}
+                />
+              )}
+            </Box>
+          </Box>
+        </Box>
 
         {/* Conditionally render video and canvas elements */}
         {user?.cameraOn && (
@@ -246,8 +277,6 @@ const Home = () => {
             <canvas ref={canvasRef} style={{ display: "none" }} />
           </>
         )}
-        </Grid>
-        </Grid>  
       </Container>
     </Box>
   );
