@@ -141,36 +141,83 @@ exports.getTweets = async (req, res) => {
     const negativeHashtags = user?.hashtagNegatif || [];
 
     // 2. Get seen tweet IDs
-    const seenTweetIds = await Emotion.find({ user_id: userId }).distinct(
-      "tweet_id"
-    );
+    const seenTweetIds = await Emotion.find({ user_id: userId }).distinct("tweet_id");
 
     let allMatchingTweets = [];
     let currentPage = parsedPage;
 
     while (allMatchingTweets.length < parsedLimit) {
       // 3. Build query for unseen tweets
-      let query = Tweet.find({
-        _id: { $nin: seenTweetIds },
-      })
-        .populate("author", "username name profilePicture")
-        .populate({
-          path: "originalTweet",
-          populate: {
-            path: "author",
-            select: "username name profilePicture",
+      let query = Tweet.aggregate([
+        {
+          $match: {
+            _id: { $nin: seenTweetIds },
           },
-        })
-        .populate("retweets")
-        .populate("usersave") // Add this line to populate usersave
-        .sort({ date: -1 });
+        },
+        {
+          $lookup: {
+            from: "replies", // The collection name for comments
+            localField: "_id",
+            foreignField: "idTweet",
+            as: "comments",
+          },
+        },
+        {
+          $addFields: {
+            commentCount: { $size: "$comments" }, // Add comment count field
+          },
+        },
+        {
+          $sort: { date: -1 },
+        },
+        {
+          $skip: (currentPage - 1) * parsedLimit,
+        },
+        {
+          $limit: parsedLimit,
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "author",
+            foreignField: "_id",
+            as: "author",
+          },
+        },
+        {
+          $unwind: "$author",
+        },
+        {
+          $lookup: {
+            from: "tweets",
+            localField: "originalTweet",
+            foreignField: "_id",
+            as: "originalTweet",
+          },
+        },
+        {
+          $unwind: {
+            path: "$originalTweet",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "originalTweet.author",
+            foreignField: "_id",
+            as: "originalTweet.author",
+          },
+        },
+        {
+          $unwind: {
+            path: "$originalTweet.author",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+      ]);
 
-      // 4. Paginate and execute the query
-      const tweets = await query
-        .skip((currentPage - 1) * parsedLimit)
-        .limit(parsedLimit)
-        .lean()
-        .exec();
+      const tweets = await query.exec();
 
       if (tweets.length === 0) {
         // No more tweets to fetch
@@ -180,9 +227,7 @@ exports.getTweets = async (req, res) => {
       // 5. Filter out tweets containing any negative hashtags
       const filteredTweets = tweets.filter((tweet) => {
         if (!tweet.hashtags) return true; // If no hashtags, keep the tweet
-        return !tweet.hashtags.some((hashtag) =>
-          negativeHashtags.includes(hashtag)
-        );
+        return !tweet.hashtags.some((hashtag) => negativeHashtags.includes(hashtag));
       });
 
       // 6. Add filtered tweets to the result
@@ -760,5 +805,38 @@ exports.getTweetsByUser = async (req, res) => {
     res
       .status(500)
       .json({ message: "Error fetching tweets by user", error: error.message });
+  }
+};
+
+//get all comments of a tweet
+exports.getTweetComments = async (req, res) => {
+  try {
+    const { page = 1, limit = 5 } = req.query;
+    const tweetId = req.params.id;
+
+    const parsedPage = parseInt(page);
+    const parsedLimit = parseInt(limit);
+
+    const totalComments = await Replies.countDocuments({ idTweet: tweetId });
+
+    const comments = await Replies.find({ idTweet: tweetId })
+      .skip((parsedPage - 1) * parsedLimit)
+      .limit(parsedLimit)
+      .sort({ date: -1 }) // Sort by date in descending order (newest first)
+      .populate('author', 'username profilePicture'); // Populate the author field with username and profilePicture
+
+    const totalPages = Math.ceil(totalComments / parsedLimit);
+
+    res.status(200).json({
+      comments,
+      totalPages,
+      currentPage: parsedPage,
+    });
+  } catch (error) {
+    console.error('Error fetching tweet comments:', error);
+    res.status(500).json({
+      message: 'Error fetching tweet comments',
+      error: error.message,
+    });
   }
 };

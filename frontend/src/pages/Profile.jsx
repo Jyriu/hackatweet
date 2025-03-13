@@ -23,6 +23,7 @@ import {
   IconButton,
 } from "@mui/material";
 import axios from "axios";
+import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import Tweet from "../components/Tweet";
 import CloseIcon from "@mui/icons-material/Close";
@@ -150,7 +151,10 @@ const Profile = () => {
             setTabLoading(false);
           })
           .catch((err) => {
-            console.error("Erreur lors du chargement des tweets commentés :", err);
+            console.error(
+              "Erreur lors du chargement des tweets commentés :",
+              err
+            );
             setTabLoading(false);
           });
         break;
@@ -189,7 +193,9 @@ const Profile = () => {
       setIsUpdating(false);
     } catch (err) {
       console.error(err);
-      setUpdateError(err.response?.data?.message || "Erreur lors de la mise à jour");
+      setUpdateError(
+        err.response?.data?.message || "Erreur lors de la mise à jour"
+      );
       setIsUpdating(false);
     }
   };
@@ -249,7 +255,9 @@ const Profile = () => {
   if (!user) {
     return (
       <Container sx={{ mt: 4 }}>
-        <Typography variant="h6">Veuillez vous connecter pour voir votre profil.</Typography>
+        <Typography variant="h6">
+          Veuillez vous connecter pour voir votre profil.
+        </Typography>
       </Container>
     );
   }
@@ -285,7 +293,13 @@ const Profile = () => {
                   : "https://via.placeholder.com/150?text=Avatar"
               }
               alt={profileData.username}
-              sx={{ width: 100, height: 100, border: "4px solid white", mt: -8, mr: 2 }}
+              sx={{
+                width: 100,
+                height: 100,
+                border: "4px solid white",
+                mt: -8,
+                mr: 2,
+              }}
             />
             <Box>
               <Typography variant="h4">@{profileData.username}</Typography>
@@ -307,7 +321,9 @@ const Profile = () => {
           </Box>
           {isEditing && (
             <Box component="form" onSubmit={handleUpdateProfile} mt={2}>
-              {updateError && <Typography color="error">{updateError}</Typography>}
+              {updateError && (
+                <Typography color="error">{updateError}</Typography>
+              )}
               <TextField
                 label="Bio"
                 fullWidth
@@ -315,7 +331,11 @@ const Profile = () => {
                 onChange={(e) => setBio(e.target.value)}
                 margin="normal"
               />
-              <Button variant="outlined" component="label" sx={{ mr: 2, mt: 1 }}>
+              <Button
+                variant="outlined"
+                component="label"
+                sx={{ mr: 2, mt: 1 }}
+              >
                 Choisir une photo de profil
                 <input
                   type="file"
@@ -324,7 +344,11 @@ const Profile = () => {
                   onChange={(e) => setPhotoFile(e.target.files[0])}
                 />
               </Button>
-              <Button variant="outlined" component="label" sx={{ mr: 2, mt: 1 }}>
+              <Button
+                variant="outlined"
+                component="label"
+                sx={{ mr: 2, mt: 1 }}
+              >
                 Choisir une bannière
                 <input
                   type="file"
@@ -335,7 +359,11 @@ const Profile = () => {
               </Button>
               <Box mt={2}>
                 <Button type="submit" variant="contained" color="primary">
-                  {isUpdating ? <CircularProgress size={24} color="inherit" /> : "Enregistrer"}
+                  {isUpdating ? (
+                    <CircularProgress size={24} color="inherit" />
+                  ) : (
+                    "Enregistrer"
+                  )}
                 </Button>
               </Box>
             </Box>
@@ -346,7 +374,12 @@ const Profile = () => {
       <Divider sx={{ my: 3 }} />
 
       {/* Onglets pour afficher Tweets, Signets, Likés, Commentés */}
-      <Tabs value={selectedTab} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
+      <Tabs
+        value={selectedTab}
+        onChange={handleTabChange}
+        variant="scrollable"
+        scrollButtons="auto"
+      >
         <Tab label="Tweets" />
         <Tab label="Signets" />
         <Tab label="Likés" />
@@ -370,7 +403,9 @@ const Profile = () => {
             {selectedTab === 1 && (
               <Box>
                 {bookmarkedTweets.length > 0 ? (
-                  bookmarkedTweets.map((tweet) => <Tweet key={tweet._id} tweet={tweet} />)
+                  bookmarkedTweets.map((tweet) => (
+                    <Tweet key={tweet._id} tweet={tweet} />
+                  ))
                 ) : (
                   <Typography>Aucun tweet signet.</Typography>
                 )}
@@ -379,7 +414,9 @@ const Profile = () => {
             {selectedTab === 2 && (
               <Box>
                 {likedTweets.length > 0 ? (
-                  likedTweets.map((tweet) => <Tweet key={tweet._id} tweet={tweet} />)
+                  likedTweets.map((tweet) => (
+                    <Tweet key={tweet._id} tweet={tweet} />
+                  ))
                 ) : (
                   <Typography>Aucun tweet liké.</Typography>
                 )}
@@ -388,7 +425,9 @@ const Profile = () => {
             {selectedTab === 3 && (
               <Box>
                 {commentedTweets.length > 0 ? (
-                  commentedTweets.map((tweet) => <Tweet key={tweet._id} tweet={tweet} />)
+                  commentedTweets.map((tweet) => (
+                    <Tweet key={tweet._id} tweet={tweet} />
+                  ))
                 ) : (
                   <Typography>Aucun tweet commenté.</Typography>
                 )}
@@ -399,7 +438,12 @@ const Profile = () => {
       </Box>
 
       {/* Dialog pour afficher les abonnés */}
-      <Dialog open={openFollowers} onClose={handleCloseFollowers} fullWidth maxWidth="sm">
+      <Dialog
+        open={openFollowers}
+        onClose={handleCloseFollowers}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>
           Abonnés
           <IconButton
@@ -416,7 +460,12 @@ const Profile = () => {
           ) : followers.length > 0 ? (
             <List>
               {followers.map((follower) => (
-                <ListItem key={follower._id}>
+                <ListItem
+                  key={follower._id}
+                  button
+                  component={Link}
+                  to={`/user/${follower.username}`}
+                >
                   <ListItemAvatar>
                     <Avatar
                       src={
@@ -427,7 +476,10 @@ const Profile = () => {
                       alt={follower.username}
                     />
                   </ListItemAvatar>
-                  <ListItemText primary={`@${follower.username}`} secondary={follower.bio} />
+                  <ListItemText
+                    primary={`@${follower.username}`}
+                    secondary={follower.bio}
+                  />
                 </ListItem>
               ))}
             </List>
@@ -438,7 +490,12 @@ const Profile = () => {
       </Dialog>
 
       {/* Dialog pour afficher les abonnements */}
-      <Dialog open={openFollowing} onClose={handleCloseFollowing} fullWidth maxWidth="sm">
+      <Dialog
+        open={openFollowing}
+        onClose={handleCloseFollowing}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>
           Abonnements
           <IconButton
@@ -455,7 +512,12 @@ const Profile = () => {
           ) : following.length > 0 ? (
             <List>
               {following.map((followed) => (
-                <ListItem key={followed._id}>
+                <ListItem
+                  key={followed._id}
+                  button
+                  component={Link}
+                  to={`/user/${followed.username}`}
+                >
                   <ListItemAvatar>
                     <Avatar
                       src={
@@ -466,7 +528,10 @@ const Profile = () => {
                       alt={followed.username}
                     />
                   </ListItemAvatar>
-                  <ListItemText primary={`@${followed.username}`} secondary={followed.bio} />
+                  <ListItemText
+                    primary={`@${followed.username}`}
+                    secondary={followed.bio}
+                  />
                 </ListItem>
               ))}
             </List>

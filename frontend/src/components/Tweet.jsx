@@ -1,22 +1,15 @@
 import React, { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  IconButton,
-  TextField,
-  Badge,
-  Avatar,
-  Box,
-} from "@mui/material";
+import { Card, CardContent, Typography, Button, IconButton, TextField, Badge, Avatar, Box } from "@mui/material";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import RepeatIcon from "@mui/icons-material/Repeat";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
 import RetweetDialog from "./RetweetDialog";
-import { likeTweet, bookmarkTweet } from "../services/api";
+import { likeTweet, bookmarkTweet, getTweetComments } from "../services/api";
+import CommentForm from "./CommentForm";
+import TweetComments from "./TweetComments";
+import { Link } from "react-router-dom";
 
 const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
   const [liked, setLiked] = useState(false);
@@ -27,16 +20,38 @@ const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
   const [bookmarkCount, setBookmarkCount] = useState(tweet?.usersave?.length || 0);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [openRetweetDialog, setOpenRetweetDialog] = useState(false);
   const current_user = user;
   const currentUserId = current_user?.id;
+  const commentsPerPage = 5;
 
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
+ 
+
+  // Check if the tweet is liked or bookmarked by the current user
   useEffect(() => {
     setLiked(tweet?.userLikes?.includes(currentUserId));
     setIsBookmarked(tweet?.usersave?.includes(currentUserId));
-  }, [tweet?.userLikes, tweet?.usersave]);
+  }, [tweet?.userLikes, tweet?.usersave, currentUserId]);
 
+  // Fetch comments for the tweet
+  useEffect(() => {
+    const fetchComments = async () => {
+      try {
+        const data = await getTweetComments(tweet._id, page, commentsPerPage);
+        setComments(data.comments);
+        setTotalPages(data.totalPages);
+      } catch (error) {
+        console.error("Error fetching comments:", error);
+      }
+    };
+
+    fetchComments();
+  }, [tweet._id, page, commentsPerPage]);
+
+  // Handle like button click
   const handleLike = async () => {
     try {
       const response = await likeTweet(tweet._id);
@@ -48,20 +63,24 @@ const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
     }
   };
 
+  // Handle retweet button click
   const handleRetweet = () => {
     setOpenRetweetDialog(true);
   };
 
+  // Close the retweet dialog
   const handleCloseRetweetDialog = () => {
     setOpenRetweetDialog(false);
   };
 
+  // Handle retweet submission
   const handleRetweetSubmit = (newRetweet) => {
     setRetweeted(true);
-    setLocalRetweetCount(prevCount => prevCount + 1);
+    setLocalRetweetCount((prevCount) => prevCount + 1);
     onRetweet(newRetweet);
   };
 
+  // Handle bookmark button click
   const handleBookmark = async () => {
     try {
       const response = await bookmarkTweet(tweet._id);
@@ -73,14 +92,21 @@ const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
     }
   };
 
-  const handleAddComment = () => {
-    if (newComment.trim() !== "") {
-      setComments([...comments, newComment]);
-      setNewComment("");
-      // TODO: Implement comment functionality with backend
+  // Handle pagination for comments
+  const handleChangePage = (event, value) => {
+    setPage(value);
+  };
+
+  // Handle new comment addition
+  const handleCommentAdded = async (newComment) => {
+    try {
+      setComments((prevComments) => [newComment, ...prevComments]);
+    } catch (error) {
+      console.error("Error adding comment:", error);
     }
   };
 
+  // Render hashtags
   const renderHashtags = (hashtags) => {
     return hashtags.map((hashtag, index) => (
       <Typography
@@ -94,6 +120,7 @@ const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
     ));
   };
 
+  // Render original tweet (for retweets)
   const renderOriginalTweet = (originalTweet) => {
     return (
       <Box
@@ -127,7 +154,7 @@ const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
         )}
         {originalTweet.mediaUrl && (
           <img
-            src={`http://localhost:5001${originalTweet.mediaUrl}`}
+            src={`${API_URL}${originalTweet.mediaUrl}`}
             alt="Original Tweet Media"
             style={{ width: "100%", borderRadius: "8px", marginTop: "10px" }}
           />
@@ -136,25 +163,38 @@ const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
     );
   };
 
+  // Colors for like and bookmark badges
+  const likeBadgeColor = liked ? "error" : "default";
+  const bookmarkBadgeColor = isBookmarked ? "primary" : "default";
+
   return (
     <Card sx={{ marginBottom: 2, padding: 2 }}>
       <CardContent>
-        <Box display="flex" alignItems="center" mb={2}>
-          <Avatar src={tweet?.author?.profilePicture} alt={tweet?.author?.username} />
-          <Box ml={2}>
-            <Typography variant="subtitle1">{tweet?.author?.name}</Typography>
-            <Typography variant="body2" color="textSecondary">
-              @{tweet?.author?.username}
-            </Typography>
+        {/* Redirection sur la page utilisateur via Link */}
+        <Link to={`/user/${tweet?.author?.username}`} style={{ textDecoration: "none", color: "inherit" }}>
+          <Box display="flex" alignItems="center" mb={2}>
+            <Avatar
+              src={tweet?.author?.profilePicture || tweet?.author?.photo || "https://via.placeholder.com/150?text=Avatar"}
+              alt={tweet?.author?.username}
+            />
+            <Box ml={2}>
+              <Typography variant="subtitle1">{tweet?.author?.name}</Typography>
+              <Typography variant="body2" color="textSecondary">
+                @{tweet?.author?.username}
+              </Typography>
+            </Box>
           </Box>
-        </Box>
+        </Link>
 
+        {/* Tweet Content */}
         <Typography variant="body1">{tweet.text}</Typography>
 
+        {/* Hashtags */}
         {tweet.hashtags && (
           <Box sx={{ marginTop: "8px" }}>{renderHashtags(tweet.hashtags)}</Box>
         )}
 
+        {/* Link */}
         {tweet.link && (
           <Typography
             variant="body2"
@@ -167,27 +207,26 @@ const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
           </Typography>
         )}
 
+        {/* Media */}
         {tweet.mediaUrl && (
           <img
-            src={`http://localhost:5001${tweet.mediaUrl}`}
+            src={`${API_URL}${tweet.mediaUrl}`}
             alt="Tweet Media"
             style={{ width: "100%", borderRadius: "8px", marginTop: "10px" }}
           />
         )}
 
+        {/* Original Tweet (for retweets) */}
         {tweet.originalTweet && renderOriginalTweet(tweet.originalTweet)}
 
+        {/* Comment Count */}
+        <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+          {tweet.commentCount || 0} Comments
+        </Typography>
+
+        {/* Action Buttons */}
         <Box sx={{ mt: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          {/* Like Button with Red Background */}
-          <Badge
-            badgeContent={likeCount}
-            sx={{
-              "& .MuiBadge-badge": {
-                backgroundColor: liked ? "red" : "default", // Red background for the badge
-                color: "white", // White text for better contrast
-              },
-            }}
-          >
+          <Badge badgeContent={likeCount} sx={{ "& .MuiBadge-badge": { backgroundColor: liked ? "red" : "default", color: "white" } }}>
             <IconButton
               onClick={handleLike}
               sx={{
@@ -202,57 +241,40 @@ const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
             </IconButton>
           </Badge>
 
-          {/* Retweet Button */}
           <Badge badgeContent={localRetweetCount} color="primary">
             <IconButton onClick={handleRetweet} color={retweeted ? "success" : "default"}>
               <RepeatIcon />
             </IconButton>
           </Badge>
 
-          {/* Comment Button */}
           <IconButton onClick={() => setShowComments(!showComments)} color="primary">
             <ChatBubbleOutlineIcon />
           </IconButton>
 
-          {/* Bookmark Button */}
           <Badge badgeContent={bookmarkCount} color="secondary">
-            <IconButton onClick={handleBookmark} color={isBookmarked ? "primary" : "default"}>
+            <IconButton
+              onClick={handleBookmark}
+              color={isBookmarked ? "primary" : "default"}
+            >
               {isBookmarked ? <BookmarkIcon /> : <BookmarkBorderIcon />}
             </IconButton>
           </Badge>
         </Box>
 
+        {/* Comments Section */}
         {showComments && (
           <Box mt={2}>
-            {comments.map((comment, index) => (
-              <Typography
-                key={index}
-                variant="body2"
-                sx={{
-                  backgroundColor: "#f5f5f5",
-                  padding: "8px",
-                  borderRadius: "5px",
-                  marginBottom: "5px",
-                }}
-              >
-                {comment}
-              </Typography>
-            ))}
-            <TextField
-              fullWidth
-              label="Écrire un commentaire..."
-              variant="outlined"
-              size="small"
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              sx={{ mt: 1 }}
+            <CommentForm tweetId={tweet._id} onCommentAdded={handleCommentAdded} />
+            <TweetComments
+              comments={comments}
+              page={page}
+              totalPages={totalPages}
+              handleChangePage={handleChangePage}
             />
-            <Button variant="contained" sx={{ mt: 1 }} onClick={handleAddComment}>
-              Ajouter
-            </Button>
           </Box>
         )}
 
+        {/* Retweet Dialog */}
         <RetweetDialog
           open={openRetweetDialog}
           onClose={handleCloseRetweetDialog}
@@ -265,4 +287,3 @@ const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
 };
 
 export default Tweet;
- 

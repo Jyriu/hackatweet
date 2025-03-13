@@ -146,3 +146,35 @@ export const performSearch = async (query, type) => {
     throw error; // Rejette l'erreur pour la gérer dans le composant
   }
 };
+export const addComment = async (tweetId, text) => {
+  try {
+    const response = await axios.post(`${API_URL}/api/tweet/comment/${tweetId}`, { text }, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error adding comment:", error);
+    throw error;
+  }
+};
+
+// Fetch comments for a tweet
+export const getTweetComments = async (tweetId, page = 1, limit = 5) => {
+  try {
+      const response = await axios.get(`${API_URL}/api/tweet/allComments/${tweetId}`, {
+          params: {
+              page,
+              limit
+          },
+          headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`
+          }
+      });
+      return response.data;
+  } catch (error) {
+      console.error("Error fetching tweet comments:", error);
+      throw error;
+  }
+};
