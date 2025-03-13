@@ -171,8 +171,30 @@ io.on('connection', (socket) => {
   // Stocker la connexion de l'utilisateur
   userSocketMap[socket.user._id] = socket.id;
   
+  // Informer tous les clients de l'utilisateur connecté
+  io.emit('user_online', { 
+    userId: socket.user._id, 
+    username: socket.user.username 
+  });
+  
+  // Envoyer la liste des utilisateurs en ligne
+  const onlineUsers = Object.keys(userSocketMap);
+  socket.emit('online_users', { users: onlineUsers });
+  
   // Envoyer les notifications non lues au moment de la connexion
-  socket.emit('connection_established', { message: 'Connected to notification service' });
+  socket.emit('connection_established', { 
+    message: 'Connected to notification service',
+    userId: socket.user._id 
+  });
+  
+  // Ping régulier pour maintenir la connexion active
+  const pingInterval = setInterval(() => {
+    if (socket.connected) {
+      socket.emit('ping', { timestamp: new Date() });
+    } else {
+      clearInterval(pingInterval);
+    }
+  }, 30000); // 30 secondes
   
   // SYSTÈME DE MESSAGERIE
   // Envoi d'un message à un utilisateur
@@ -184,12 +206,13 @@ io.on('connection', (socket) => {
         return socket.emit('message_error', { error: 'Données manquantes' });
       }
       
-      console.log(`Tentative d'envoi de message: conversation=${conversationId}, content=${content}`);
+      console.log(`Tentative d'envoi de message: conversation=${conversationId}, content=${content.substring(0, 30)}...`);
       
       // Trouver la conversation
       const conversation = await Conversation.findOne({
         _id: conversationId,
-        participants: socket.user._id
+        participants: socket.user._id,
+        isActive: true
       });
       
       if (!conversation) {
@@ -205,12 +228,13 @@ io.on('connection', (socket) => {
         return socket.emit('message_error', { error: 'Destinataire non trouvé' });
       }
       
-      // Créer et sauvegarder le message
+      // Créer et sauvegarder le message avec les nouveaux champs
       const newMessage = new Message({
         conversation: conversationId,
         sender: socket.user._id,
         recipient: recipientId,
         content,
+        status: 'sent',
         read: false,
         createdAt: new Date()
       });
@@ -240,23 +264,106 @@ io.on('connection', (socket) => {
       // Enrichir les données du message pour le frontend
       const enrichedMessage = {
         ...populatedMessage.toObject(),
-        conversation: conversationId
+        conversation: conversationId,
+        isFromCurrentUser: true // Pour l'expéditeur
       };
-      
-      console.log(`Message créé et enrichi:`, JSON.stringify(enrichedMessage, null, 2));
       
       // Envoyer le message à l'expéditeur pour confirmation
       socket.emit('message_sent', enrichedMessage);
       
-      // Envoyer le message au destinataire s'il est connecté
+      // Vérifier si le destinataire est en ligne
       const recipientSocketId = userSocketMap[recipientId.toString()];
-      if (recipientSocketId) {
-        io.to(recipientSocketId).emit('new_message', enrichedMessage);
+      const isRecipientOnline = !!recipientSocketId;
+      
+      // Si le destinataire est en ligne, envoyer le message et mettre à jour le statut
+      if (isRecipientOnline) {
+        // Envoyer au destinataire avec isFromCurrentUser = false
+        const messageForRecipient = {
+          ...enrichedMessage,
+          isFromCurrentUser: false
+        };
+        
+        io.to(recipientSocketId).emit('new_message', messageForRecipient);
+        
+        // Mettre à jour le statut du message comme "delivered"
+        await Message.findByIdAndUpdate(newMessage._id, { 
+          status: 'delivered',
+          deliveredAt: new Date()
+        });
+        
+        // Informer l'expéditeur du changement de statut
+        socket.emit('message_status_update', {
+          messageId: newMessage._id,
+          status: 'delivered',
+          deliveredAt: new Date()
+        });
       }
       
-      console.log(`📨 [Message] De ${socket.user.username} à ${recipientId} dans la conversation ${conversationId}`);
+      console.log(`📨 [Message] De ${socket.user.username} à ${recipientId} dans la conversation ${conversationId} (destinataire ${isRecipientOnline ? 'en ligne' : 'hors ligne'})`);
     } catch (error) {
       console.error('Erreur envoi message:', error);
+      socket.emit('message_error', { error: error.message });
+    }
+  });
+  
+  // Mise à jour du statut d'un message (lu, etc.)
+  socket.on('message_status', async (data) => {
+    try {
+      const { messageId, status } = data;
+      
+      if (!messageId || !status) {
+        return socket.emit('message_error', { error: 'ID de message et statut requis' });
+      }
+      
+      // Vérifier si le message existe et si l'utilisateur est le destinataire
+      const message = await Message.findOne({
+        _id: messageId,
+        recipient: socket.user._id
+      });
+      
+      if (!message) {
+        return socket.emit('message_error', { error: 'Message non trouvé ou accès refusé' });
+      }
+      
+      // Mettre à jour le statut du message
+      const updates = { status };
+      
+      if (status === 'delivered') {
+        updates.deliveredAt = new Date();
+      } else if (status === 'read') {
+        updates.read = true;
+        updates.readBy = message.readBy || [];
+        
+        // Ajouter l'utilisateur à la liste readBy s'il n'y est pas déjà
+        const alreadyRead = updates.readBy.some(entry => 
+          entry.user && entry.user.toString() === socket.user._id.toString()
+        );
+        
+        if (!alreadyRead) {
+          updates.readBy.push({
+            user: socket.user._id,
+            readAt: new Date()
+          });
+        }
+      }
+      
+      await Message.findByIdAndUpdate(messageId, updates);
+      
+      // Notifier l'expéditeur du changement de statut
+      const senderSocketId = userSocketMap[message.sender.toString()];
+      if (senderSocketId) {
+        io.to(senderSocketId).emit('message_status_update', {
+          messageId,
+          status,
+          ...updates
+        });
+      }
+      
+      socket.emit('status_updated', { messageId, status });
+      
+      console.log(`📝 [Message] Statut mis à jour: ${messageId} => ${status}`);
+    } catch (error) {
+      console.error('Erreur mise à jour statut:', error);
       socket.emit('message_error', { error: error.message });
     }
   });
@@ -273,22 +380,52 @@ io.on('connection', (socket) => {
       // Vérifier si la conversation existe et si l'utilisateur y participe
       const conversation = await Conversation.findOne({
         _id: conversationId,
-        participants: socket.user._id
+        participants: socket.user._id,
+        isActive: true
       });
       
       if (!conversation) {
         return socket.emit('message_error', { error: 'Conversation non trouvée ou accès refusé' });
       }
       
-      // Marquer tous les messages non lus adressés à l'utilisateur comme lus
-      const result = await Message.updateMany(
-        {
-          conversation: conversationId,
-          recipient: socket.user._id,
-          read: false
-        },
-        { read: true }
-      );
+      // Trouver tous les messages non lus adressés à l'utilisateur
+      const unreadMessages = await Message.find({
+        conversation: conversationId,
+        recipient: socket.user._id,
+        read: false
+      });
+      
+      // Pour chaque message, mettre à jour les champs read, status et readBy
+      let updatedCount = 0;
+      for (const message of unreadMessages) {
+        message.read = true;
+        message.status = 'read';
+        
+        // Ajouter l'utilisateur à la liste readBy s'il n'y est pas déjà
+        const alreadyRead = message.readBy.some(entry => 
+          entry.user && entry.user.toString() === socket.user._id.toString()
+        );
+        
+        if (!alreadyRead) {
+          message.readBy.push({
+            user: socket.user._id,
+            readAt: new Date()
+          });
+        }
+        
+        await message.save();
+        updatedCount++;
+        
+        // Notifier l'expéditeur que son message a été lu
+        const senderSocketId = userSocketMap[message.sender.toString()];
+        if (senderSocketId) {
+          io.to(senderSocketId).emit('message_status_update', {
+            messageId: message._id,
+            status: 'read',
+            readBy: message.readBy
+          });
+        }
+      }
       
       // Mettre à jour le compteur de messages non lus dans la conversation
       const unreadCount = conversation.unreadCount || new Map();
@@ -299,48 +436,64 @@ io.on('connection', (socket) => {
         { unreadCount }
       );
       
-      // Notifier le client que les messages ont été marqués comme lus
       socket.emit('conversation_read', { 
-        conversationId,
-        count: result.modifiedCount
+        conversationId, 
+        count: updatedCount 
       });
       
-      // Notifier l'autre participant si nécessaire
-      const otherParticipant = conversation.participants.find(
-        p => p.toString() !== socket.user._id.toString()
-      );
-      
-      if (otherParticipant) {
-        const otherParticipantSocketId = userSocketMap[otherParticipant.toString()];
-        if (otherParticipantSocketId) {
-          io.to(otherParticipantSocketId).emit('other_user_read_messages', {
-            conversationId,
-            userId: socket.user._id
-          });
-        }
-      }
-      
-      console.log(`📖 [Messages] ${result.modifiedCount} messages marqués comme lus par ${socket.user.username} dans la conversation ${conversationId}`);
+      console.log(`✓ [Conversation] ${updatedCount} messages marqués comme lus dans ${conversationId}`);
     } catch (error) {
-      console.error('Erreur marquer conversation comme lue:', error);
+      console.error('Erreur marquage messages lus:', error);
       socket.emit('message_error', { error: error.message });
     }
   });
   
-  // Récupérer la liste des utilisateurs en ligne
-  socket.on('get_online_users', () => {
-    // Convertir l'objet de mapping en tableau d'IDs d'utilisateurs
-    const onlineUserIds = Object.keys(userSocketMap);
-    socket.emit('online_users', { users: onlineUserIds });
+  // Indication de saisie en cours
+  socket.on('typing', (data) => {
+    const { conversationId, isTyping } = data;
+    
+    if (!conversationId) return;
+    
+    // Trouver les autres participants de la conversation
+    Conversation.findById(conversationId)
+      .then(conversation => {
+        if (!conversation) return;
+        
+        // Envoyer l'indication de saisie aux autres participants en ligne
+        conversation.participants.forEach(participantId => {
+          if (participantId.toString() !== socket.user._id.toString()) {
+            const recipientSocketId = userSocketMap[participantId.toString()];
+            if (recipientSocketId) {
+              io.to(recipientSocketId).emit('user_typing', {
+                conversationId,
+                userId: socket.user._id,
+                username: socket.user.username,
+                isTyping
+              });
+            }
+          }
+        });
+      })
+      .catch(err => console.error('Erreur lors de la notification de saisie:', err));
   });
   
-  // Gérer la déconnexion
+  // Gestion de la déconnexion
   socket.on('disconnect', () => {
-    console.log(`🔌 [Socket] Utilisateur déconnecté: ${socket.user.username} (${socket.user._id})`);
-    delete userSocketMap[socket.user._id];
+    // Supprimer l'utilisateur de la map des connexions
+    if (socket.user && socket.user._id) {
+      delete userSocketMap[socket.user._id];
+      
+      // Informer les autres utilisateurs
+      io.emit('user_offline', { 
+        userId: socket.user._id, 
+        username: socket.user.username 
+      });
+      
+      console.log(`🔌 [Socket] Utilisateur déconnecté: ${socket.user.username} (${socket.user._id})`);
+    }
     
-    // Informer les autres utilisateurs qu'un utilisateur s'est déconnecté
-    socket.broadcast.emit('user_offline', { userId: socket.user._id });
+    // Nettoyer les intervalles
+    clearInterval(pingInterval);
   });
 });
 

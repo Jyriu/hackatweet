@@ -55,49 +55,88 @@ exports.getMessages = async (req, res) => {
     const { conversationId } = req.params;
     const userId = req.user.id;
     
+    console.log(`Récupération des messages pour la conversation ${conversationId}, utilisateur ${userId}`);
+    
     // Vérifier si la conversation existe et si l'utilisateur y participe
     const conversation = await Conversation.findOne({
       _id: conversationId,
-      participants: userId
+      participants: userId,
+      isActive: true // On vérifie que la conversation est active
     });
     
     if (!conversation) {
       return res.status(404).json({ message: 'Conversation non trouvée ou accès refusé' });
     }
     
+    // Récupérer les messages de la conversation avec pagination
+    const page = parseInt(req.query.page) || 0;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = page * limit;
+    
     // Récupérer les messages de la conversation
     const messages = await Message.find({
       conversation: conversationId
     })
     .sort({ createdAt: 1 })
+    .skip(skip)
+    .limit(limit)
     .populate('sender', '_id username photo')
     .populate('recipient', '_id username photo')
-    .limit(100);  // Limiter à 100 messages pour la performance
+    .populate('readBy.user', '_id username photo');
     
-    // Marquer tous les messages comme lus
-    const unreadMessages = messages.filter(
-      msg => msg.recipient._id.toString() === userId && !msg.read
-    );
+    // Ajouter la propriété isFromCurrentUser pour chaque message
+    const formattedMessages = messages.map(message => {
+      const isFromCurrentUser = message.sender._id.toString() === userId;
+      return {
+        ...message.toObject(),
+        isFromCurrentUser
+      };
+    });
     
-    if (unreadMessages.length > 0) {
-      // Mettre à jour les messages
-      await Message.updateMany(
-        {
-          _id: { $in: unreadMessages.map(msg => msg._id) }
-        },
-        { read: true }
+    // Si c'est la première page, marquer les messages non lus comme "delivered"
+    if (page === 0) {
+      // Trouver tous les messages non lus destinés à l'utilisateur
+      const undeliveredMessages = messages.filter(
+        msg => msg.recipient._id.toString() === userId && 
+               msg.status !== 'delivered' && 
+               msg.status !== 'read'
       );
       
-      // Mettre à jour le compteur de messages non lus dans la conversation
-      const unreadCount = conversation.unreadCount || new Map();
-      unreadCount.set(userId.toString(), 0);
-      await Conversation.updateOne(
-        { _id: conversationId },
-        { unreadCount }
-      );
+      for (const message of undeliveredMessages) {
+        if (message.status === 'sent') {
+          // Mettre à jour le statut comme "delivered"
+          await Message.findByIdAndUpdate(message._id, { 
+            status: 'delivered', 
+            deliveredAt: new Date() 
+          });
+          
+          // Notifier l'expéditeur que son message a été délivré
+          if (global.io && global.userSocketMap) {
+            const senderSocketId = global.userSocketMap[message.sender._id.toString()];
+            if (senderSocketId) {
+              global.io.to(senderSocketId).emit('message_status_update', {
+                messageId: message._id,
+                status: 'delivered',
+                deliveredAt: new Date()
+              });
+            }
+          }
+        }
+      }
     }
     
-    return res.status(200).json(messages);
+    // Inclure le nombre total de messages pour la pagination
+    const totalMessages = await Message.countDocuments({ conversation: conversationId });
+    
+    return res.status(200).json({
+      messages: formattedMessages,
+      pagination: {
+        total: totalMessages,
+        page,
+        limit,
+        hasMore: skip + messages.length < totalMessages
+      }
+    });
   } catch (error) {
     console.error('Erreur lors de la récupération des messages:', error);
     return res.status(500).json({ message: 'Erreur serveur', error: error.message });
@@ -186,7 +225,8 @@ exports.sendMessage = async (req, res) => {
     // Vérifier si la conversation existe et si l'utilisateur y participe
     const conversation = await Conversation.findOne({
       _id: conversationId,
-      participants: userId
+      participants: userId,
+      isActive: true // On vérifie que la conversation est active
     });
     
     if (!conversation) {
@@ -198,14 +238,17 @@ exports.sendMessage = async (req, res) => {
       p => p.toString() !== userId
     );
     
-    // Créer le message
+    // Créer le message avec les nouveaux champs
     const message = new Message({
       conversation: conversationId,
       sender: userId,
       recipient: recipientId,
       content,
+      status: 'sent', // Utiliser le nouveau champ status
       read: false,
-      createdAt: new Date()
+      createdAt: new Date(),
+      // Pas de deliveredAt pour le moment (sera défini quand le destinataire le recevra)
+      // readBy reste vide pour le moment
     });
     
     await message.save();
@@ -233,11 +276,32 @@ exports.sendMessage = async (req, res) => {
     // Envoyer la notification via WebSocket si disponible
     if (global.io && global.userSocketMap) {
       const recipientSocketId = global.userSocketMap[recipientId.toString()];
+      
+      // Message destiné au destinataire
       if (recipientSocketId) {
+        console.log(`🔔 Notification WebSocket envoyée à ${recipientId}`);
+        
+        // Envoyer le message au destinataire
         global.io.to(recipientSocketId).emit('new_message', {
           ...populatedMessage.toObject(),
           conversation: conversationId
         });
+        
+        // Mettre à jour le statut du message comme "delivered"
+        await Message.findByIdAndUpdate(message._id, { 
+          status: 'delivered', 
+          deliveredAt: new Date() 
+        });
+        
+        // Informer l'expéditeur que le message a été délivré
+        const senderSocketId = global.userSocketMap[userId.toString()];
+        if (senderSocketId) {
+          global.io.to(senderSocketId).emit('message_status_update', {
+            messageId: message._id,
+            status: 'delivered',
+            deliveredAt: new Date()
+          });
+        }
       }
     }
     
@@ -257,35 +321,74 @@ exports.markConversationAsRead = async (req, res) => {
     // Vérifier si la conversation existe et si l'utilisateur y participe
     const conversation = await Conversation.findOne({
       _id: conversationId,
-      participants: userId
+      participants: userId,
+      isActive: true // On vérifie que la conversation est active
     });
     
     if (!conversation) {
       return res.status(404).json({ message: 'Conversation non trouvée ou accès refusé' });
     }
     
-    // Marquer tous les messages non lus adressés à l'utilisateur comme lus
-    const result = await Message.updateMany(
-      {
-        conversation: conversationId,
-        recipient: userId,
-        read: false
-      },
-      { read: true }
-    );
+    // Trouver tous les messages non lus destinés à l'utilisateur
+    const unreadMessages = await Message.find({
+      conversation: conversationId,
+      recipient: userId,
+      read: false
+    });
     
-    // Mettre à jour le compteur de messages non lus dans la conversation
-    const unreadCount = conversation.unreadCount || new Map();
-    unreadCount.set(userId.toString(), 0);
-    
-    await Conversation.updateOne(
-      { _id: conversationId },
-      { unreadCount }
-    );
+    if (unreadMessages.length > 0) {
+      console.log(`Marquage de ${unreadMessages.length} messages comme lus dans la conversation ${conversationId}`);
+      
+      // Pour chaque message, mettre à jour les champs read, status et readBy
+      for (const message of unreadMessages) {
+        message.read = true;
+        message.status = 'read';
+        
+        // Ajouter l'utilisateur à la liste readBy s'il n'y est pas déjà
+        const alreadyRead = message.readBy.some(entry => 
+          entry.user && entry.user.toString() === userId
+        );
+        
+        if (!alreadyRead) {
+          message.readBy.push({
+            user: userId,
+            readAt: new Date()
+          });
+        }
+        
+        await message.save();
+        
+        // Notifier l'expéditeur que son message a été lu
+        if (global.io && global.userSocketMap) {
+          const senderSocketId = global.userSocketMap[message.sender.toString()];
+          if (senderSocketId) {
+            global.io.to(senderSocketId).emit('message_status_update', {
+              messageId: message._id,
+              status: 'read',
+              readBy: [{
+                user: userId,
+                readAt: new Date()
+              }]
+            });
+          }
+        }
+      }
+      
+      // Mettre à jour le compteur de messages non lus dans la conversation
+      const unreadCount = conversation.unreadCount || new Map();
+      unreadCount.set(userId.toString(), 0);
+      
+      await Conversation.updateOne(
+        { _id: conversationId },
+        { unreadCount }
+      );
+    } else {
+      console.log(`Aucun message non lu à mettre à jour dans la conversation ${conversationId}`);
+    }
     
     return res.status(200).json({
       message: 'Messages marqués comme lus',
-      count: result.modifiedCount
+      count: unreadMessages.length
     });
   } catch (error) {
     console.error('Erreur lors du marquage des messages comme lus:', error);

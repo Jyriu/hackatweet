@@ -22,13 +22,48 @@ const messageSchema = new Schema({
     required: true,
     trim: true
   },
+  status: {
+    type: String,
+    enum: ['sending', 'sent', 'delivered', 'read', 'failed'],
+    default: 'sent'
+  },
   read: {
     type: Boolean,
     default: false
   },
+  readBy: [{
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    readAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  deliveredAt: {
+    type: Date
+  },
+  updatedAt: {
+    type: Date
+  },
+  attachments: [{
+    type: {
+      type: String,
+      enum: ['image', 'file', 'audio', 'video'],
+    },
+    url: String,
+    name: String,
+    size: Number
+  }],
+  metadata: {
+    type: Map,
+    of: Schema.Types.Mixed,
+    default: {}  // Pour stocker des métadonnées additionnelles
   }
 });
 
@@ -36,5 +71,12 @@ const messageSchema = new Schema({
 messageSchema.index({ conversation: 1 });
 messageSchema.index({ sender: 1, recipient: 1 });
 messageSchema.index({ createdAt: -1 });
+messageSchema.index({ status: 1 }); // Pour rechercher par statut du message
+
+// Middleware pour mettre à jour automatiquement le champ updatedAt
+messageSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
+});
 
 module.exports = mongoose.model('Message', messageSchema); 

@@ -13,11 +13,13 @@ import {
   CircularProgress,
   Button,
   Alert,
+  Tooltip,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 const ConversationList = ({
   conversations = {},
@@ -27,6 +29,7 @@ const ConversationList = ({
   isUserOnline,
   loading,
   error,
+  onRefreshOnlineUsers,
 }) => {
   const conversationArray = Object.values(conversations);
 
@@ -75,16 +78,33 @@ const ConversationList = ({
       <Box 
         sx={{ 
           display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          p: 2,
-          borderBottom: '1px solid #e0e0e0'
+          justifyContent: 'space-between',
+          p: 2, 
+          borderBottom: '1px solid #e0e0e0' 
         }}
       >
         <Typography variant="h6">Conversations</Typography>
-        <IconButton color="primary" onClick={onNewConversation}>
-          <AddIcon />
-        </IconButton>
+        <Box>
+          {onRefreshOnlineUsers && (
+            <Tooltip title="Rafraîchir les statuts en ligne">
+              <IconButton 
+                color="primary" 
+                onClick={onRefreshOnlineUsers}
+                size="small"
+                sx={{ mr: 1 }}
+              >
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+          <IconButton 
+            color="primary" 
+            onClick={onNewConversation}
+            size="small"
+          >
+            <AddIcon />
+          </IconButton>
+        </Box>
       </Box>
       
       {sortedConversations.length === 0 ? (
