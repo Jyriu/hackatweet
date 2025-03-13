@@ -26,6 +26,8 @@ const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
   const current_user = user;
   const currentUserId = current_user?.id;
   const commentsPerPage = 5;
+
+  const API_URL = import.meta.env.VITE_BACKEND_URL;
  
 
   // Check if the tweet is liked or bookmarked by the current user
