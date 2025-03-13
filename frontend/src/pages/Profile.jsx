@@ -38,7 +38,6 @@ const Profile = () => {
   const currentUser = useSelector((state) => state.user.currentUser);
   const token = localStorage.getItem("token");
 
-
   // On suppose que currentUser n'est jamais null quand l'utilisateur est connecté
   const [profileData, setProfileData] = useState(null);
   const [selectedTab, setSelectedTab] = useState(0); // 0: Tweets, 1: Signets, 2: Likés, 3: Commentés
@@ -94,16 +93,54 @@ const Profile = () => {
     switch (selectedTab) {
       case 0:
         axios
-          .get(`${API_URL}/api/tweet/user/${currentUser.id}/tweets`, {
+          .get(`${API_URL}/api/tweet/user/${currentUser._id}/tweets`, {
             headers: { Authorization: `Bearer ${token}` },
           })
           .then((res) => {
-            setTweets(res.data);
-            setTabLoading(false);
+            // Si des tweets sont trouvés, on les utilise
+            if (res.data && res.data.length > 0) {
+              setTweets(res.data);
+              setTabLoading(false);
+            } else {
+              // Aucun tweet trouvé, on réessaie avec currentUser.id
+              axios
+                .get(`${API_URL}/api/tweet/user/${currentUser.id}/tweets`, {
+                  headers: { Authorization: `Bearer ${token}` },
+                })
+                .then((resRetry) => {
+                  setTweets(resRetry.data);
+                  setTabLoading(false);
+                })
+                .catch((errRetry) => {
+                  console.error(
+                    "Erreur lors du chargement des tweets avec currentUser.id :",
+                    errRetry
+                  );
+                  setTabLoading(false);
+                });
+            }
           })
           .catch((err) => {
-            console.error("Erreur lors du chargement des tweets :", err);
-            setTabLoading(false);
+            console.error(
+              "Erreur lors du chargement des tweets avec currentUser._id :",
+              err
+            );
+            // En cas d'erreur sur la première requête, on tente aussi avec currentUser.id
+            axios
+              .get(`${API_URL}/api/tweet/user/${currentUser.id}/tweets`, {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+              .then((resRetry) => {
+                setTweets(resRetry.data);
+                setTabLoading(false);
+              })
+              .catch((errRetry) => {
+                console.error(
+                  "Erreur lors du chargement des tweets avec currentUser.id :",
+                  errRetry
+                );
+                setTabLoading(false);
+              });
           });
         break;
       case 1:
@@ -144,7 +181,10 @@ const Profile = () => {
             setTabLoading(false);
           })
           .catch((err) => {
-            console.error("Erreur lors du chargement des tweets commentés :", err);
+            console.error(
+              "Erreur lors du chargement des tweets commentés :",
+              err
+            );
             setTabLoading(false);
           });
         break;
@@ -191,7 +231,9 @@ const Profile = () => {
       fetchProfile();
     } catch (err) {
       console.error(err);
-      setUpdateError(err.response?.data?.message || "Erreur lors de la mise à jour");
+      setUpdateError(
+        err.response?.data?.message || "Erreur lors de la mise à jour"
+      );
       setIsUpdating(false);
     }
   };
@@ -277,7 +319,13 @@ const Profile = () => {
       >
         {/* Colonne de gauche : Informations de l'utilisateur */}
         <Box sx={{ width: { xs: "100%", md: 400 } }}>
-          <Slide direction="up" in={true} mountOnEnter unmountOnExit timeout={500}>
+          <Slide
+            direction="up"
+            in={true}
+            mountOnEnter
+            unmountOnExit
+            timeout={500}
+          >
             <Card
               sx={{
                 borderRadius: 12,
@@ -329,7 +377,12 @@ const Profile = () => {
                     <Typography variant="body1" sx={{ mt: 1 }}>
                       {profileData.bio}
                     </Typography>
-                    <Box mt={1} display="flex" justifyContent="space-between" alignItems="center">
+                    <Box
+                      mt={1}
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
                       <Button
                         onClick={handleOpenFollowers}
                         variant="text"
@@ -371,7 +424,11 @@ const Profile = () => {
                       margin="normal"
                     />
                     <Box display="flex" gap={2} mt={1}>
-                      <Button variant="outlined" component="label" sx={{ textTransform: "none" }}>
+                      <Button
+                        variant="outlined"
+                        component="label"
+                        sx={{ textTransform: "none" }}
+                      >
                         Choisir une photo de profil
                         <input
                           type="file"
@@ -380,7 +437,11 @@ const Profile = () => {
                           onChange={(e) => setPhotoFile(e.target.files[0])}
                         />
                       </Button>
-                      <Button variant="outlined" component="label" sx={{ textTransform: "none" }}>
+                      <Button
+                        variant="outlined"
+                        component="label"
+                        sx={{ textTransform: "none" }}
+                      >
                         Choisir une bannière
                         <input
                           type="file"
@@ -397,7 +458,11 @@ const Profile = () => {
                         color="primary"
                         sx={{ textTransform: "none", fontWeight: 600 }}
                       >
-                        {isUpdating ? <CircularProgress size={24} color="inherit" /> : "Enregistrer"}
+                        {isUpdating ? (
+                          <CircularProgress size={24} color="inherit" />
+                        ) : (
+                          "Enregistrer"
+                        )}
                       </Button>
                     </Box>
                   </Box>
@@ -425,25 +490,39 @@ const Profile = () => {
             <Tab label="Likés" />
           </Tabs>
           <Box sx={{ mt: 2 }}>
-  {tabLoading ? (
-    <Box display="flex" justifyContent="center" mt={4}>
-      <CircularProgress />
-    </Box>
-  ) : (
-    <>
-      {selectedTab === 0 && (
-        <TweetList tweets={tweets} loading={tabLoading} hasMore={false} user={currentUser} />
-      )}
-      {selectedTab === 1 && (
-        <TweetList tweets={bookmarkedTweets} loading={tabLoading} hasMore={false} user={currentUser} />
-      )}
-      {selectedTab === 2 && (
-        <TweetList tweets={likedTweets} loading={tabLoading} hasMore={false} user={currentUser} />
-      )}
-    </>
-  )}
-</Box>
-
+            {tabLoading ? (
+              <Box display="flex" justifyContent="center" mt={4}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <>
+                {selectedTab === 0 && (
+                  <TweetList
+                    tweets={tweets}
+                    loading={tabLoading}
+                    hasMore={false}
+                    user={currentUser}
+                  />
+                )}
+                {selectedTab === 1 && (
+                  <TweetList
+                    tweets={bookmarkedTweets}
+                    loading={tabLoading}
+                    hasMore={false}
+                    user={currentUser}
+                  />
+                )}
+                {selectedTab === 2 && (
+                  <TweetList
+                    tweets={likedTweets}
+                    loading={tabLoading}
+                    hasMore={false}
+                    user={currentUser}
+                  />
+                )}
+              </>
+            )}
+          </Box>
         </Box>
       </Box>
 
@@ -501,7 +580,10 @@ const Profile = () => {
                       alt={follower.username}
                     />
                   </ListItemAvatar>
-                  <ListItemText primary={`@${follower.username}`} secondary={follower.bio} />
+                  <ListItemText
+                    primary={`@${follower.username}`}
+                    secondary={follower.bio}
+                  />
                 </ListItem>
               ))}
             </List>
@@ -565,7 +647,10 @@ const Profile = () => {
                       alt={followed.username}
                     />
                   </ListItemAvatar>
-                  <ListItemText primary={`@${followed.username}`} secondary={followed.bio} />
+                  <ListItemText
+                    primary={`@${followed.username}`}
+                    secondary={followed.bio}
+                  />
                 </ListItem>
               ))}
             </List>
