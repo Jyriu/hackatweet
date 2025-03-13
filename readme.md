@@ -45,11 +45,11 @@ To install and run the project locally, follow these steps:
 
    ```plaintext
    Backend:
-   MONGODB_URI=mongodb://localhost:27017/hackatweet
+   MONGODB_URI=mongodb+srv://samiyezza:8a08ad81@cluster0.uyxehij.mongodb.net/hackatweet
    PORT=5001
    JWT_SECRET=secret
 
-   Fronend:
+   Frontend:
    VITE_BACKEND_URL=http://localhost:5001
    ```
 
