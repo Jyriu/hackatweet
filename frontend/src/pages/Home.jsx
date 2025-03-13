@@ -6,6 +6,7 @@ import { fetchTweetsFromApi, saveEmotionToApi } from "../services/api";
 import useEmotionDetection from "../hooks/useEmotionDetection";
 import { useSelector } from "react-redux";
 
+
 const Home = () => {
   const [tweets, setTweets] = useState([]);
   const [loading, setLoading] = useState(true);

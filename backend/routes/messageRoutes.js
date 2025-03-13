@@ -18,4 +18,7 @@ router.get('/:userId', messageController.getMessageHistory);
 // Marquer tous les messages d'un utilisateur comme lus
 router.put('/:userId/read', messageController.markConversationAsRead);
 
+// Créer un nouveau message
+router.post('/', messageController.createMessage);
+
 module.exports = router; 
