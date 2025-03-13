@@ -13,7 +13,7 @@ export const postTweet = async (content) => {
 export const fetchTweetsFromApi = async (pageNumber, userId) => {
   try {
     const response = await axios.get(
-      `${API_URL}/api/tweet/tweets?page=${pageNumber}&limit=10&userId=${userId}`,
+      `${API_URL}/api/tweet/tweets?page=${pageNumber}&limit=10&userId=${userId}`
     );
     return response.data;
   } catch (error) {

@@ -18,8 +18,8 @@ const Home = () => {
   const [showFollowingTweets, setShowFollowingTweets] = useState(false);
   const isFetching = useRef(false);
   const lastTweetRef = useRef(null);
-  //const user = useSelector((state) => state.user.currentUser);
-  const user = JSON.parse(localStorage.getItem("user")); // Parse the user object
+  const user = useSelector((state) => state.user.currentUser);
+  //const user = JSON.parse(localStorage.getItem("user")); // Parse the user object
   const userId = user?.id;
   const navigate = useNavigate(); // NEW hook
 
@@ -69,14 +69,16 @@ const Home = () => {
       try {
         setLoading(true);
         const data = await fetchFollowingTweets(pageNumber, userId);
-        if (data && data.tweets.length > 0) {
+        // Gérer le cas où data est directement un tableau ou un objet contenant { tweets, hasMore }
+        const followingData = data.tweets ? data.tweets : data;
+        if (followingData && followingData.length > 0) {
           setFollowingTweets((prev) => {
-            const newTweets = data.tweets.filter(
+            const newTweets = followingData.filter(
               (t) => !prev.some((ex) => ex._id === t._id)
             );
             return [...prev, ...newTweets];
           });
-          setHasMoreFollowing(data.hasMore);
+          setHasMoreFollowing(data.hasMore !== undefined ? data.hasMore : false);
         } else {
           setHasMoreFollowing(false);
         }
