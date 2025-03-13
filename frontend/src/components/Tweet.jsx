@@ -13,14 +13,18 @@ import {
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import RepeatIcon from "@mui/icons-material/Repeat";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
+import BookmarkIcon from "@mui/icons-material/Bookmark";
 import RetweetDialog from "./RetweetDialog";
-import { likeTweet } from "../services/api"; // Import the API function
+import { likeTweet, bookmarkTweet } from "../services/api";
 
 const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
   const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(tweet.userLikes ? tweet.userLikes.length : 0);
+  const [likeCount, setLikeCount] = useState(tweet?.userLikes?.length || 0);
   const [retweeted, setRetweeted] = useState(false);
-  const [localRetweetCount, setLocalRetweetCount] = useState(tweet.retweets ? tweet.retweets.length : 0);
+  const [localRetweetCount, setLocalRetweetCount] = useState(tweet?.retweets?.length || 0);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [bookmarkCount, setBookmarkCount] = useState(tweet?.usersave?.length || 0);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
@@ -28,14 +32,15 @@ const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
 
   useEffect(() => {
     const currentUserId = localStorage.getItem("userId");
-    setLiked(tweet.userLikes.includes(currentUserId));
-  }, [tweet.userLikes]);
+    setLiked(tweet?.userLikes?.includes(currentUserId));
+    setIsBookmarked(tweet?.usersave?.includes(currentUserId));
+  }, [tweet?.userLikes, tweet?.usersave]);
 
   const handleLike = async () => {
     try {
       const response = await likeTweet(tweet._id);
       setLiked(!liked);
-      setLikeCount(response.tweet.userLikes.length);
+      setLikeCount(response?.tweet?.userLikes?.length);
       onUpdateTweet(response.tweet);
     } catch (error) {
       console.error("Error liking tweet:", error);
@@ -54,6 +59,17 @@ const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
     setRetweeted(true);
     setLocalRetweetCount(prevCount => prevCount + 1);
     onRetweet(newRetweet);
+  };
+
+  const handleBookmark = async () => {
+    try {
+      const response = await bookmarkTweet(tweet._id);
+      setIsBookmarked(!isBookmarked);
+      setBookmarkCount(response?.tweet?.usersave?.length);
+      onUpdateTweet(response.tweet);
+    } catch (error) {
+      console.error("Error bookmarking tweet:", error);
+    }
   };
 
   const handleAddComment = () => {
@@ -89,7 +105,7 @@ const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
         }}
       >
         <Typography variant="subtitle2" color="textSecondary">
-          Retweeted from @{originalTweet.author.username}
+          Retweeted from @{originalTweet?.author?.username}
         </Typography>
         <Typography variant="body1" sx={{ marginTop: "8px" }}>
           {originalTweet.text}
@@ -123,11 +139,11 @@ const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
     <Card sx={{ marginBottom: 2, padding: 2 }}>
       <CardContent>
         <Box display="flex" alignItems="center" mb={2}>
-          <Avatar src={tweet.author.profilePicture} alt={tweet.author.username} />
+          <Avatar src={tweet?.author?.profilePicture} alt={tweet?.author?.username} />
           <Box ml={2}>
-            <Typography variant="subtitle1">{tweet.author.name}</Typography>
+            <Typography variant="subtitle1">{tweet?.author?.name}</Typography>
             <Typography variant="body2" color="textSecondary">
-              @{tweet.author.username}
+              @{tweet?.author?.username}
             </Typography>
           </Box>
         </Box>
@@ -176,6 +192,12 @@ const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
           <IconButton onClick={() => setShowComments(!showComments)} color="primary">
             <ChatBubbleOutlineIcon />
           </IconButton>
+
+          <Badge badgeContent={bookmarkCount} color="secondary">
+            <IconButton onClick={handleBookmark}>
+              {isBookmarked ? <BookmarkIcon sx={{ color: 'blue' }}/> : <BookmarkBorderIcon />}
+            </IconButton>
+          </Badge>
         </Box>
 
         {showComments && (
