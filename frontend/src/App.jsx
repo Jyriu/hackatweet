@@ -39,6 +39,7 @@ import {
   disconnectFromSocket,
 } from "./redux/actions/socketActions";
 import { loadUser, logoutUser } from "./redux/actions/userActions";
+import { loadUnreadCount } from "./redux/actions/notificationActions";
 
 // URL de base du backend
 const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
@@ -222,8 +223,14 @@ const App = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    if (user && !isConnected) {
-      dispatch(connectToSocket());
+    if (user) {
+      // Charger le nombre de notifications non lues
+      dispatch(loadUnreadCount());
+      
+      // Connecter le socket si nécessaire
+      if (!isConnected) {
+        dispatch(connectToSocket());
+      }
     }
     return () => {
       if (isConnected) {
