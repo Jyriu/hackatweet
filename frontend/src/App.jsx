@@ -255,11 +255,15 @@ function AppContent() {
 const App = () => {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.user.currentUser);
+  const token = useSelector((state) => state.user.token);
   const isConnected = useSelector((state) => state.socket.connected);
 
   useEffect(() => {
-    dispatch(loadUser());
-  }, [dispatch]);
+    // Charger l'utilisateur depuis l'API seulement si nous avons un token mais pas d'utilisateur
+    if (token && !user) {
+      dispatch(loadUser());
+    }
+  }, [dispatch, token, user]);
 
   useEffect(() => {
     if (user) {

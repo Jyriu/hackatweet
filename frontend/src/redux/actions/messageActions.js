@@ -5,7 +5,7 @@ import {
 } from '../Store';
 
 import {
-  sendMessage,
+  emitSocketMessage,
   sendMarkConversationRead,
   sendUserTyping
 } from '../middleware/socketMiddleware';
@@ -42,7 +42,7 @@ export const loadConversationMessages = (conversationId) => async (dispatch) => 
 // Action pour envoyer un message
 export const sendMessageAction = (conversationId, content, recipientId) => (dispatch) => {
   console.log('📤 Envoi d\'un message:', { conversationId, content, recipientId });
-  dispatch(sendMessage(conversationId, content, recipientId));
+  dispatch(emitSocketMessage(conversationId, content, recipientId));
 };
 
 // Action pour marquer un message comme lu

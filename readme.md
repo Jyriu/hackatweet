@@ -19,16 +19,20 @@ Hackatweet is an innovative project developed during the Hackathon IA 2025. The 
 - **Databases**: MongoDB
 - **AI/ML Libraries**: TensorFlow, scikit-learn
 
-## Installation
+## Setup
 
 To install and run the project locally, follow these steps:
 
-1. **Clone the repository**:
+**Clone the repository**:
 
    ```bash
    git clone https://github.com/yourusername/hackatweet.git
    cd hackatweet
    ```
+
+## Running the Project
+
+1. 
 
 2. **Install dependencies**:
 
@@ -44,15 +48,25 @@ To install and run the project locally, follow these steps:
    MONGODB_URI=mongodb://localhost:27017/hackatweet
    PORT=5001
    JWT_SECRET=secret
-   
+
    Fronend:
    VITE_BACKEND_URL=http://localhost:5001
    ```
 
-4. **Run the application**:
+4. **Run the application via commandes**:
    ```bash
    npm start
    ```
+
+## Lancement via Docker Compose
+
+Assurez-vous d'avoir Docker et Docker Compose installés.
+
+1. Construisez et lancez les containers :
+   ```bash
+   docker-compose up --build
+   ```
+2. Accédez à l'application sur http://localhost:5001 (ou le port défini dans vos variables d'environnement).
 
 ## Usage
 
