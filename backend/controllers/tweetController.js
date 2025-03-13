@@ -161,6 +161,7 @@ exports.getTweets = async (req, res) => {
                 }
             })
             .populate('retweets')
+            .populate('usersave') // Add this line to populate usersave
             .sort({ date: -1 });
 
             // 4. Paginate and execute the query
@@ -526,29 +527,49 @@ exports.retweet = async (req, res) => {
 // Ajouter ou retirer un signet à un tweet
 exports.bookmarkTweet = async (req, res) => {
     try {
-        const tweet = await Tweet.findById(req.params.id);
+        let tweet = await Tweet.findById(req.params.id);
         const user = await User.findById(req.user.id);
 
         if (!tweet) {
             return res.status(404).json({ message: 'Tweet non trouvé' });
         }
 
-        if (user.signet.includes(req.params.id)) {
-            // Retirer le signet
+        const isBookmarked = user.signet.includes(req.params.id);
+
+        if (isBookmarked) {
+            // Remove bookmark
             user.signet = user.signet.filter(tweetId => tweetId.toString() !== req.params.id);
             tweet.usersave = tweet.usersave.filter(userId => userId.toString() !== req.user.id);
-            await user.save();
-            await tweet.save();
-            return res.json({ message: 'Tweet retiré des signets', tweet });
+        } else {
+            // Add bookmark
+            user.signet.push(req.params.id);
+            tweet.usersave.push(req.user.id);
         }
 
-        // Ajouter le signet
-        user.signet.push(req.params.id);
-        tweet.usersave.push(req.user.id);
         await user.save();
         await tweet.save();
 
-        res.json({ message: 'Tweet enregistré en signet', tweet });
+        // Fetch the updated tweet with all necessary information
+        tweet = await Tweet.findById(req.params.id)
+            .populate('author', 'username name profilePicture')
+            .populate({
+                path: 'originalTweet',
+                populate: {
+                    path: 'author',
+                    select: 'username name profilePicture'
+                }
+            })
+            .populate('retweets')
+            .lean();
+
+        // Add additional fields
+        tweet.isBookmarked = !isBookmarked;
+        tweet.bookmarkCount = tweet.usersave.length;
+        tweet.retweetCount = tweet.retweets.length;
+        tweet.likeCount = tweet.userLikes.length;
+
+        const message = isBookmarked ? 'Tweet retiré des signets' : 'Tweet enregistré en signet';
+        res.json({ message, tweet });
     } catch (error) {
         console.error('Erreur lors de l\'enregistrement du tweet en signet:', error);
         res.status(500).json({ message: 'Erreur lors de l\'enregistrement du tweet en signet', error: error.message });

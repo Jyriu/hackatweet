@@ -31,7 +31,8 @@ const Tweet = ({ tweet, onUpdateTweet, onRetweet }) => {
   const [openRetweetDialog, setOpenRetweetDialog] = useState(false);
 
   useEffect(() => {
-    const currentUserId = localStorage.getItem("userId");
+    const user = localStorage.getItem("user") ;
+    const currentUserId = user?.id ;
     setLiked(tweet?.userLikes?.includes(currentUserId));
     setIsBookmarked(tweet?.usersave?.includes(currentUserId));
   }, [tweet?.userLikes, tweet?.usersave]);

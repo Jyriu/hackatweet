@@ -106,3 +106,19 @@ export const likeTweet = async (tweetId) => {
     throw error;
   }
 };
+
+// api.js
+export const bookmarkTweet = async (tweetId) => {
+  try {
+    const response = await axios.post(`${API_URL}/api/tweet/signet/${tweetId}`, {}, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error bookmarking tweet:", error);
+    throw error;
+  }
+};
+
