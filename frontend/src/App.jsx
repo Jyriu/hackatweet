@@ -22,6 +22,7 @@ import {
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
+import ChatIcon from "@mui/icons-material/Chat";
 
 // Pages
 import Home from "./pages/Home";
@@ -32,6 +33,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Settings from "./pages/Settings";
 import UserProfile from "./pages/UserProfile";
+import Chat from "./pages/Chat";
 
 // Redux actions
 import {
@@ -62,7 +64,7 @@ const AuthRoute = ({ element }) => {
   return element;
 };
 
-// Boutons de navigation (le bouton "Home" a été retiré)
+// Boutons de navigation
 function NavigationButtons() {
   const user = useSelector((state) => state.user.currentUser);
   const unreadCount = useSelector((state) => state.notifications.unreadCount);
@@ -72,6 +74,15 @@ function NavigationButtons() {
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+      <Tooltip title="Messages">
+        <IconButton
+          color="inherit"
+          onClick={() => navigate("/chat")}
+          sx={{ fontSize: "1.5rem" }}
+        >
+          <ChatIcon fontSize="large" />
+        </IconButton>
+      </Tooltip>
       <Tooltip title="Notifications">
         <IconButton
           color="inherit"
@@ -196,6 +207,10 @@ function AppContent() {
           <Route
             path="/settings"
             element={<ProtectedRoute element={<Settings />} />}
+          />
+          <Route
+            path="/chat"
+            element={<ProtectedRoute element={<Chat />} />}
           />
           <Route
             path="/user/:username"

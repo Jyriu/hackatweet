@@ -1,35 +1,30 @@
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  loadConversations,
   loadConversationMessages,
-  setActiveConversationAction,
   sendMessageAction,
   markMessageAsReadAction,
   userTypingAction
 } from '../redux/actions/messageActions';
+import { useConversation } from './useConversation';
 
 // Hook personnalisé pour les messages
 export const useMessages = () => {
   const dispatch = useDispatch();
-  const { conversations, activeConversation, loading, error } = useSelector(state => state.messages);
+  const { loading, error } = useSelector(state => state.messages);
   const user = useSelector(state => state.user.currentUser);
-  const onlineUsers = useSelector(state => state.socket.onlineUsers);
+  
+  // Utiliser le hook useConversation pour accéder aux conversations
+  const { activeConversation, activeConversationId } = useConversation();
 
-  // Charger les conversations quand l'utilisateur se connecte
+  // Charger les messages de la conversation active quand elle change
   useEffect(() => {
-    if (user) {
-      dispatch(loadConversations());
+    if (activeConversationId) {
+      dispatch(loadConversationMessages(activeConversationId));
     }
-  }, [user, dispatch]);
+  }, [activeConversationId, dispatch]);
 
-  // Fonctions utilitaires
-  const setActiveConversation = (conversationId) => {
-    dispatch(setActiveConversationAction(conversationId));
-    // Charger les messages de cette conversation
-    dispatch(loadConversationMessages(conversationId));
-  };
-
+  // Fonctions pour la gestion des messages
   const sendMessage = (conversationId, content, recipientId) => {
     dispatch(sendMessageAction(conversationId, content, recipientId));
   };
@@ -42,21 +37,11 @@ export const useMessages = () => {
     dispatch(userTypingAction(conversationId));
   };
 
-  // Vérifier si un utilisateur est en ligne
-  const isUserOnline = (userId) => {
-    return onlineUsers.includes(userId);
-  };
-
   return {
-    conversations,
-    activeConversation: activeConversation ? conversations[activeConversation] : null,
     loading,
     error,
-    setActiveConversation,
     sendMessage,
     markMessageRead,
-    userTyping,
-    isUserOnline,
-    refresh: () => dispatch(loadConversations())
+    userTyping
   };
 }; 
