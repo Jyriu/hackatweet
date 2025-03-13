@@ -23,36 +23,20 @@ const LoginForm = ({ onSuccess }) => {
   const handleLogin = async (e) => {
     e?.preventDefault();
     
-    if (!email || !password) {
-      return; // Simple validation
-    }
-    
+    if (!email || !password) return; 
+
     try {
-      console.log("Tentative de connexion...");
       await login({ email, password });
-      console.log("Connexion réussie");
-      
-      // Appeler la fonction de réussite fournie par le parent
-      if (onSuccess) {
-        onSuccess();
-      }
+      if (onSuccess) onSuccess();
     } catch (err) {
-      // L'erreur est déjà gérée par le hook useAuth
       console.error("Erreur de connexion:", err);
     }
   };
 
   return (
-    <form onSubmit={handleLogin}>
+    <Box component="form" onSubmit={handleLogin} sx={{ textAlign: 'center' }}>
       {error && (
-        <Alert 
-          severity="error" 
-          sx={{ 
-            mb: 3, 
-            borderRadius: 2,
-            fontSize: '0.9rem'
-          }}
-        >
+        <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
           {error}
         </Alert>
       )}
@@ -74,7 +58,11 @@ const LoginForm = ({ onSuccess }) => {
             </InputAdornment>
           ),
         }}
-        sx={{ mb: 2 }}
+        sx={{ 
+          mb: 2,
+          transition: "all 0.3s ease",
+          '&:focus-within': { transform: "scale(1.02)" }
+        }}
       />
       
       <TextField
@@ -95,20 +83,17 @@ const LoginForm = ({ onSuccess }) => {
           ),
           endAdornment: (
             <InputAdornment position="end">
-              <IconButton
-                onClick={() => setShowPassword(!showPassword)}
-                edge="end"
-              >
-                {showPassword ? (
-                  <VisibilityOffIcon />
-                ) : (
-                  <VisibilityIcon />
-                )}
+              <IconButton onClick={() => setShowPassword(!showPassword)}>
+                {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
               </IconButton>
             </InputAdornment>
           ),
         }}
-        sx={{ mb: 3 }}
+        sx={{ 
+          mb: 3,
+          transition: "all 0.3s ease",
+          '&:focus-within': { transform: "scale(1.02)" }
+        }}
       />
       
       <Button 
@@ -120,17 +105,15 @@ const LoginForm = ({ onSuccess }) => {
         disabled={loading || !email || !password}
         sx={{ 
           py: 1.5,
-          mb: 2
+          mb: 2,
+          transition: "all 0.3s ease",
+          '&:hover': { transform: "scale(1.05)" }
         }} 
       >
-        {loading ? (
-          <CircularProgress size={24} color="inherit" />
-        ) : (
-          "Se connecter"
-        )}
+        {loading ? <CircularProgress size={24} color="inherit" /> : "Se connecter"}
       </Button>
-    </form>
+    </Box>
   );
 };
 
-export default LoginForm; 
+export default LoginForm;
