@@ -44,7 +44,7 @@ const UserProfile = () => {
   const [loadingFollowing, setLoadingFollowing] = useState(false);
   const token = useSelector((state) => state.user.token);
   const currentUser = useSelector((state) => state.user.currentUser);
-  const currentUserId = currentUser ? currentUser._id : null;
+  const currentUserId = currentUser ? currentUser.id : null;
 
   // Emotion detection
   const { emotionData, videoRef, canvasRef } = useEmotionDetection();
@@ -266,6 +266,7 @@ const UserProfile = () => {
           </Box>
         </Grid>
         <Grid item>
+         
           <Button
             variant="contained"
             color={isFollowing ? "secondary" : "primary"}
