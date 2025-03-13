@@ -6,7 +6,8 @@ import {
   CircularProgress, 
   Grid,
   InputAdornment,
-  IconButton
+  IconButton,
+  Box
 } from "@mui/material";
 import { useAuth } from "../hooks/useAuth";
 import PersonIcon from '@mui/icons-material/Person';
@@ -35,115 +36,36 @@ const RegisterForm = ({ onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Simple validation
-    if (!formData.email || !formData.password || !formData.username) {
-      return;
-    }
-
+    if (!formData.email || !formData.password || !formData.username) return;
+    
     try {
-      console.log("Tentative d'inscription...");
       await register(formData);
-      console.log("Inscription réussie");
-      
-      // Appeler la fonction de réussite fournie par le parent
-      if (onSuccess) {
-        onSuccess();
-      }
+      if (onSuccess) onSuccess();
     } catch (err) {
-      // L'erreur est déjà gérée par le hook useAuth
       console.error("Erreur d'inscription:", err);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <Box component="form" onSubmit={handleSubmit} sx={{ textAlign: 'center' }}>
       {error && (
-        <Alert 
-          severity="error" 
-          sx={{ 
-            mb: 3, 
-            borderRadius: 2,
-            fontSize: '0.9rem'
-          }}
-        >
+        <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
           {error}
         </Alert>
       )}
 
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Nom"
-            name="nom"
-            variant="outlined"
-            onChange={handleChange}
-            disabled={loading}
-            required
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <PersonIcon sx={{ color: 'primary.main' }} />
-                </InputAdornment>
-              ),
-            }}
-          />
+          <TextField fullWidth label="Nom" name="nom" variant="outlined" onChange={handleChange} required />
         </Grid>
         <Grid item xs={12} sm={6}>
-          <TextField
-            fullWidth
-            label="Prénom"
-            name="prenom"
-            variant="outlined"
-            onChange={handleChange}
-            disabled={loading}
-            required
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <PersonIcon sx={{ color: 'primary.main' }} />
-                </InputAdornment>
-              ),
-            }}
-          />
+          <TextField fullWidth label="Prénom" name="prenom" variant="outlined" onChange={handleChange} required />
         </Grid>
         <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Nom d'utilisateur"
-            name="username"
-            variant="outlined"
-            onChange={handleChange}
-            disabled={loading}
-            required
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <BadgeIcon sx={{ color: 'primary.main' }} />
-                </InputAdornment>
-              ),
-            }}
-          />
+          <TextField fullWidth label="Nom d'utilisateur" name="username" variant="outlined" onChange={handleChange} required />
         </Grid>
         <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Adresse Email"
-            name="email"
-            type="email"
-            variant="outlined"
-            onChange={handleChange}
-            disabled={loading}
-            required
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <EmailIcon sx={{ color: 'primary.main' }} />
-                </InputAdornment>
-              ),
-            }}
-          />
+          <TextField fullWidth label="Adresse Email" name="email" type="email" variant="outlined" onChange={handleChange} required />
         </Grid>
         <Grid item xs={12}>
           <TextField
@@ -153,25 +75,12 @@ const RegisterForm = ({ onSuccess }) => {
             type={showPassword ? "text" : "password"}
             variant="outlined"
             onChange={handleChange}
-            disabled={loading}
             required
             InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <LockIcon sx={{ color: 'primary.main' }} />
-                </InputAdornment>
-              ),
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton
-                    onClick={() => setShowPassword(!showPassword)}
-                    edge="end"
-                  >
-                    {showPassword ? (
-                      <VisibilityOffIcon />
-                    ) : (
-                      <VisibilityIcon />
-                    )}
+                  <IconButton onClick={() => setShowPassword(!showPassword)}>
+                    {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
                   </IconButton>
                 </InputAdornment>
               ),
@@ -179,23 +88,7 @@ const RegisterForm = ({ onSuccess }) => {
           />
         </Grid>
         <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Bio"
-            name="bio"
-            variant="outlined"
-            multiline
-            rows={3}
-            onChange={handleChange}
-            disabled={loading}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
-                  <BioIcon sx={{ color: 'primary.main' }} />
-                </InputAdornment>
-              ),
-            }}
-          />
+          <TextField fullWidth label="Bio" name="bio" variant="outlined" multiline rows={3} onChange={handleChange} />
         </Grid>
       </Grid>
 
@@ -209,17 +102,14 @@ const RegisterForm = ({ onSuccess }) => {
         sx={{ 
           py: 1.5,
           mt: 3,
-          mb: 2
+          transition: "all 0.3s ease",
+          '&:hover': { transform: "scale(1.05)" }
         }}
       >
-        {loading ? (
-          <CircularProgress size={24} color="inherit" /> 
-        ) : (
-          "S'inscrire"
-        )}
+        {loading ? <CircularProgress size={24} color="inherit" /> : "S'inscrire"}
       </Button>
-    </form>
+    </Box>
   );
 };
 
-export default RegisterForm; 
+export default RegisterForm;

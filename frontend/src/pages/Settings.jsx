@@ -9,6 +9,7 @@ import {
   Snackbar,
   Alert,
   Box,
+  Slide,
 } from "@mui/material";
 import { useSelector, useDispatch } from "react-redux";
 import axios from "axios";
@@ -21,27 +22,25 @@ const Settings = () => {
   const currentUser = useSelector((state) => state.user.currentUser);
   const token = useSelector((state) => state.user.token);
 
-  // États locaux pour les switches, initialisés par défaut (ici true en attendant les infos complètes)
+  // États locaux pour les switches, initialisés par défaut
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  // useEffect pour récupérer les infos utilisateur complètes si notifOn ou cameraOn sont undefined
+  // Récupération des infos utilisateur complètes si nécessaire
   useEffect(() => {
     if (currentUser) {
       if (
         typeof currentUser.notifOn === "undefined" ||
         typeof currentUser.cameraOn === "undefined"
       ) {
-        // Appel à l'API pour récupérer les infos complètes de l'utilisateur
         axios
           .get(`${API_URL}/api/user/by-username/${currentUser.username}`, {
             headers: { Authorization: `Bearer ${token}` },
           })
           .then((res) => {
             const updatedUser = res.data;
-            // Mise à jour du store Redux avec les infos complètes
             dispatch(setUser(updatedUser));
             setNotificationsEnabled(
               updatedUser.notifOn !== undefined ? updatedUser.notifOn : true
@@ -57,14 +56,13 @@ const Settings = () => {
             );
           });
       } else {
-        // Si les infos existent déjà, on met à jour les états locaux
         setNotificationsEnabled(currentUser.notifOn);
         setCameraEnabled(currentUser.cameraOn);
       }
     }
   }, [currentUser, token, dispatch]);
 
-  // Fonction générique de toggle qui met à jour via l'API et actualise Redux et le state local
+  // Fonction de toggle pour mettre à jour via l'API
   const handleToggle = async (settingName) => {
     try {
       const response = await axios.put(
@@ -72,14 +70,12 @@ const Settings = () => {
         null,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      // On s'attend à recevoir par exemple { notifOn: true } ou { cameraOn: true }
       const updatedValue = response.data[settingName];
       if (settingName === "notifOn") {
         setNotificationsEnabled(updatedValue);
       } else if (settingName === "cameraOn") {
         setCameraEnabled(updatedValue);
       }
-      // Mettre à jour Redux pour que currentUser reflète les nouveaux paramètres
       dispatch(setUser({ ...currentUser, [settingName]: updatedValue }));
       setSnackbarMessage(
         settingName === "notifOn"
@@ -106,44 +102,87 @@ const Settings = () => {
     handleToggle("cameraOn");
   };
 
-  // Tant que currentUser n'est pas chargé, on ne rend rien (ou on peut afficher un loader)
   if (!currentUser) {
     return null;
   }
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 4 }}>
-      <Card sx={{ p: 2, boxShadow: 3 }}>
-        <CardContent>
-          <Typography variant="h4" color="primary" gutterBottom>
-            Paramètres
-          </Typography>
-          <Box sx={{ my: 2 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={notificationsEnabled}
-                  onChange={handleNotificationToggle}
-                  color="primary"
-                />
-              }
-              label="Activer les notifications"
-            />
-          </Box>
-          <Box sx={{ my: 2 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={cameraEnabled}
-                  onChange={handleCameraToggle}
-                  color="primary"
-                />
-              }
-              label="Activer la caméra"
-            />
-          </Box>
-        </CardContent>
-      </Card>
+    <Container
+      maxWidth="md"
+      sx={{
+        mt: 6,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        minHeight: "80vh",
+      }}
+    >
+      <Slide direction="up" in={true} mountOnEnter unmountOnExit timeout={500}>
+        <Card
+          sx={{
+            width: "100%",
+            maxWidth: "600px",
+            p: 4,
+            boxShadow: "0px 12px 32px rgba(0,0,0,0.15)",
+            borderRadius: 16,
+            backgroundColor: "rgba(255,255,255,0.9)",
+            backdropFilter: "blur(10px)",
+            transition: "transform 0.3s ease",
+            "&:hover": { transform: "scale(1.02)" },
+          }}
+        >
+          <CardContent>
+            <Typography
+              variant="h4"
+              gutterBottom
+              sx={{
+                fontFamily: "'Montserrat', sans-serif",
+                fontWeight: 700,
+                color: "#75B7B0",
+                mb: 3,
+              }}
+            >
+              Paramètres
+            </Typography>
+            <Box
+              sx={{
+                my: 3,
+                transition: "transform 0.3s ease",
+                "&:hover": { transform: "scale(1.02)" },
+              }}
+            >
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={notificationsEnabled}
+                    onChange={handleNotificationToggle}
+                    color="primary"
+                  />
+                }
+                label="Activer les notifications"
+              />
+            </Box>
+            <Box
+              sx={{
+                my: 3,
+                transition: "transform 0.3s ease",
+                "&:hover": { transform: "scale(1.02)" },
+              }}
+            >
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={cameraEnabled}
+                    onChange={handleCameraToggle}
+                    color="primary"
+                  />
+                }
+                label="Activer la caméra"
+              />
+            </Box>
+          </CardContent>
+        </Card>
+      </Slide>
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={2000}

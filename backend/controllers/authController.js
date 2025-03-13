@@ -41,8 +41,7 @@ exports.register = async (req, res) => {
       nom,
       prenom,
       username,
-      bio: bio || '',
-      banner: 'default-banner.png'
+      bio: bio || ''  
     });
 
     // Sauvegarde de l'utilisateur

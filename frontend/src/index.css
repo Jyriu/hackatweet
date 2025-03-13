@@ -84,3 +84,74 @@ button, input, textarea {
 ::-webkit-scrollbar-thumb:hover {
   background: #A8976C;
 }
+
+.like-button-container {
+  position: relative;
+  display: inline-block;
+}
+
+.like-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+}
+
+.like-button:hover {
+  background-color: rgba(255, 0, 0, 0.1);
+}
+
+.like-button.liked {
+  color: red;
+}
+
+.like-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #ff4081;
+  color: white;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 12px;
+  min-width: 18px;
+  text-align: center;
+}
+.bookmark-button-container {
+  position: relative;
+  display: inline-block;
+}
+
+.bookmark-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+  color: inherit; /* Inherit color from parent */
+}
+
+.bookmark-button:hover {
+  background-color: rgba(0, 123, 255, 0.1); /* Light blue */
+}
+
+.bookmark-button.bookmarked {
+  color: #007bff; /* Blue when bookmarked */
+}
+
+.bookmark-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #6c757d; /* Secondary color */
+  color: white;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 12px;
+  min-width: 18px;
+  text-align: center;
+}
+

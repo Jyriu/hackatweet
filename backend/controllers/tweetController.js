@@ -431,10 +431,7 @@ exports.getAllTweetsByFollowings = async (req, res) => {
     const followingIds = user.following.map((following) => following._id);
 
     // Récupérer les tweets des abonnements
-    const tweets = await Tweet.find({ author: { $in: followingIds } }).populate(
-      "author",
-      "username"
-    );
+    const tweets = await Tweet.find({ author: { $in: followingIds } }).populate("author", "username");
 
     // Récupérer les tweets likés par les abonnements
     const likedTweets = await Tweet.find({
@@ -446,20 +443,25 @@ exports.getAllTweetsByFollowings = async (req, res) => {
       idcommentaires: { $elemMatch: { author: { $in: followingIds } } },
     }).populate("author", "username");
 
-    // Fusionner les résultats
+    // Fusionner les résultats et supprimer les doublons
     const allTweets = [...tweets, ...likedTweets, ...commentedTweets];
+    const uniqueTweets = Array.from(new Set(allTweets.map(tweet => tweet._id.toString())))
+      .map(id => allTweets.find(tweet => tweet._id.toString() === id));
 
-    // Supprimer les doublons
-    const uniqueTweets = Array.from(
-      new Set(allTweets.map((tweet) => tweet._id.toString()))
-    ).map((id) => allTweets.find((tweet) => tweet._id.toString() === id));
+    // Ajout de la pagination
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const startIndex = (page - 1) * limit;
+    const paginatedTweets = uniqueTweets.slice(startIndex, startIndex + limit);
 
-    res.json(uniqueTweets);
+    res.json({
+      tweets: paginatedTweets,
+      currentPage: page,
+      totalTweets: uniqueTweets.length,
+      totalPages: Math.ceil(uniqueTweets.length / limit)
+    });
   } catch (error) {
-    console.error(
-      "Erreur lors de la récupération des tweets des abonnements:",
-      error
-    );
+    console.error("Erreur lors de la récupération des tweets des abonnements:", error);
     res.status(500).json({
       message: "Erreur lors de la récupération des tweets des abonnements",
       error: error.message,
@@ -838,5 +840,49 @@ exports.getTweetComments = async (req, res) => {
       message: 'Error fetching tweet comments',
       error: error.message,
     });
+  }
+};
+
+// get all hashtags shared on the last week, sorted by likes
+exports.getRecentHashtagsSortedByLikes = async (req, res) => {
+  try {
+      const { startDate, endDate, limit = 100 } = req.query; // 'limit' récupéré depuis la requête, valeur par défaut = 10
+      const matchConditions = {};
+ 
+      if (startDate) {
+          matchConditions.date = { $gte: new Date(startDate) };
+      }
+      if (endDate) {
+          matchConditions.date = Object.assign(matchConditions.date || {}, { $lte: new Date(endDate) });
+      }
+ 
+      const pipeline = [
+          { $match: matchConditions }, // Filtrer selon la date
+          {
+              $project: {
+                  hashtags: 1,
+                  likesCount: { $size: { $ifNull: ["$userLikes", []] } } // Calculer le nombre de likes pour chaque tweet
+              }
+          },
+          { $unwind: "$hashtags" }, // Démanteler les hashtags pour pouvoir les grouper
+          {
+              $group: {
+                  _id: "$hashtags", // Grouper par hashtag
+                  totalLikes: { $sum: "$likesCount" }, // Somme des likes pour chaque hashtag
+                  count: { $sum: 1 } // Nombre d'occurrences de ce hashtag
+              }
+          },
+          { $sort: { totalLikes: -1 } }, // Trier par nombre de likes décroissant
+          { $limit: parseInt(limit, req.query.limit) } // Limiter le nombre de résultats à 'limit'
+      ];
+ 
+      const hashtags = await Tweet.aggregate(pipeline);
+      res.json(hashtags);
+  } catch (error) {
+      console.error('Error fetching recent hashtags:', error);
+      res.status(500).json({
+          message: 'Error fetching recent hashtags',
+          error: error.message,
+      });
   }
 };
