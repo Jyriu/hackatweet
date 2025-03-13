@@ -25,7 +25,7 @@ import {
 import axios from "axios";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
-import Tweet from "../components/Tweet";
+import TweetList from "../components/TweetList"; // Import TweetList
 import CloseIcon from "@mui/icons-material/Close";
 
 // Si Redux ne contient pas encore l'utilisateur, on tente de le récupérer depuis localStorage
@@ -392,46 +392,36 @@ const Profile = () => {
         ) : (
           <>
             {selectedTab === 0 && (
-              <Box>
-                {tweets.length > 0 ? (
-                  tweets.map((tweet) => <Tweet key={tweet._id} tweet={tweet} />)
-                ) : (
-                  <Typography>Aucun tweet pour le moment.</Typography>
-                )}
-              </Box>
+              <TweetList
+                tweets={tweets}
+                loading={tabLoading}
+                hasMore={false} // No pagination for now
+                user={user}
+              />
             )}
             {selectedTab === 1 && (
-              <Box>
-                {bookmarkedTweets.length > 0 ? (
-                  bookmarkedTweets.map((tweet) => (
-                    <Tweet key={tweet._id} tweet={tweet} />
-                  ))
-                ) : (
-                  <Typography>Aucun tweet signet.</Typography>
-                )}
-              </Box>
+              <TweetList
+                tweets={bookmarkedTweets}
+                loading={tabLoading}
+                hasMore={false}
+                user={user}
+              />
             )}
             {selectedTab === 2 && (
-              <Box>
-                {likedTweets.length > 0 ? (
-                  likedTweets.map((tweet) => (
-                    <Tweet key={tweet._id} tweet={tweet} />
-                  ))
-                ) : (
-                  <Typography>Aucun tweet liké.</Typography>
-                )}
-              </Box>
+              <TweetList
+                tweets={likedTweets}
+                loading={tabLoading}
+                hasMore={false}
+                user={user}
+              />
             )}
             {selectedTab === 3 && (
-              <Box>
-                {commentedTweets.length > 0 ? (
-                  commentedTweets.map((tweet) => (
-                    <Tweet key={tweet._id} tweet={tweet} />
-                  ))
-                ) : (
-                  <Typography>Aucun tweet commenté.</Typography>
-                )}
-              </Box>
+              <TweetList
+                tweets={commentedTweets}
+                loading={tabLoading}
+                hasMore={false}
+                user={user}
+              />
             )}
           </>
         )}
