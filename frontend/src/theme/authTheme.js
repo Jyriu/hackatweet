@@ -3,33 +3,30 @@ import { createTheme } from '@mui/material/styles';
 const authTheme = createTheme({
   palette: {
     primary: {
-      main: '#8B7D6B', // Beige brunâtre élégant
-      light: '#A8976C',
-      dark: '#665E50',
+      main: '#FF6B6B', // Rouge énergique
+      light: '#FF8787',
+      dark: '#D32F2F',
       contrastText: '#FFFFFF',
     },
     secondary: {
-      main: '#323232', // Noir subtil
-      light: '#545454',
-      dark: '#242424',
-      contrastText: '#F5F5F5',
+      main: '#4ECDC4', // Turquoise dynamique
+      light: '#7DE2D1',
+      dark: '#3BA399',
+      contrastText: '#FFFFFF',
     },
     background: {
-      default: '#F9F6F0', // Blanc cassé très léger
+      default: '#FFEFEF', // Fond rose doux
       paper: '#FFFFFF',
     },
     text: {
-      primary: '#323232',
+      primary: '#333333',
       secondary: '#666666',
-    },
-    error: {
-      main: '#D32F2F',
     },
   },
   typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Poppins", "Inter", "Roboto", sans-serif',
     h4: {
-      fontWeight: 600,
+      fontWeight: 700,
       letterSpacing: '-0.5px',
     },
     h5: {
@@ -46,22 +43,19 @@ const authTheme = createTheme({
     },
   },
   shape: {
-    borderRadius: 12,
+    borderRadius: 5,
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: {
           borderRadius: 30,
-          padding: '10px 24px',
+          padding: '12px 28px',
           boxShadow: 'none',
+          transition: 'all 0.3s ease',
           '&:hover': {
-            boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
-          },
-        },
-        containedPrimary: {
-          '&:hover': {
-            backgroundColor: '#A8976C',
+            transform: 'scale(1.05)',
+            boxShadow: '0px 6px 12px rgba(0, 0, 0, 0.15)',
           },
         },
       },
@@ -72,7 +66,7 @@ const authTheme = createTheme({
           '& .MuiOutlinedInput-root': {
             borderRadius: 12,
             '&:hover .MuiOutlinedInput-notchedOutline': {
-              borderColor: '#8B7D6B',
+              borderColor: '#FF6B6B',
             },
           },
         },
@@ -81,20 +75,13 @@ const authTheme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 16,
-          boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.05)',
+          borderRadius: 20,
+          boxShadow: '0px 8px 32px rgba(0, 0, 0, 0.1)',
           overflow: 'hidden',
-        },
-      },
-    },
-    MuiAlert: {
-      styleOverrides: {
-        root: {
-          borderRadius: 12,
         },
       },
     },
   },
 });
 
-export default authTheme; 
+export default authTheme;

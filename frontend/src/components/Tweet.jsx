@@ -28,7 +28,6 @@ const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
   const commentsPerPage = 5;
 
   const API_URL = import.meta.env.VITE_BACKEND_URL;
- console.log(tweet)
 
   // Check if the tweet is liked or bookmarked by the current user
   useEffect(() => {

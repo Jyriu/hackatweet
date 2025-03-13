@@ -23,6 +23,7 @@ import {
   PersonOutline as UserIcon,
   Tag as HashtagIcon,
 } from "@mui/icons-material";
+import { Link } from "react-router-dom";
 
 const AdvancedSearchBar = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,7 +32,7 @@ const AdvancedSearchBar = () => {
   const [error, setError] = useState(null);
   const [debounceTimeout, setDebounceTimeout] = useState(null);
   const [searchType, setSearchType] = useState("tous"); // Par défaut, recherche de tout
-  const [hasSearched, setHasSearched] = useState(false); // Nouvel état pour suivre si une recherche a été effectuée
+  const [hasSearched, setHasSearched] = useState(false); // Pour suivre si une recherche a été effectuée
 
   const url = import.meta.env.VITE_BACKEND_URL;
 
@@ -55,7 +56,7 @@ const AdvancedSearchBar = () => {
       );
       console.log("Réponse API:", response.data); // Pour vérifier la réponse
       setSearchResults(response.data);
-      setHasSearched(true); // Marquer qu'une recherche a été effectuée
+      setHasSearched(true);
     } catch (err) {
       setError(err.response?.data?.message || "Erreur lors de la recherche");
     } finally {
@@ -63,23 +64,21 @@ const AdvancedSearchBar = () => {
     }
   };
 
-  // Gestion du onChange avec debounce de 1sec
+  // Gestion du onChange avec debounce de 1 sec
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setSearchTerm(value);
 
-    // Supprime le timer précédent s'il existe
     if (debounceTimeout) {
       clearTimeout(debounceTimeout);
     }
 
-    // Lance le timer de 1 seconde avant de faire la recherche
     const timer = setTimeout(() => {
       if (value.trim() !== "") {
         performSearch(value, searchType);
       } else {
         setSearchResults(null);
-        setHasSearched(false); // Réinitialiser si la recherche est vide
+        setHasSearched(false);
       }
     }, 1000);
 
@@ -91,14 +90,14 @@ const AdvancedSearchBar = () => {
     setSearchType(e.target.value);
   };
 
-  // useEffect pour relancer la recherche lorsque searchType change
+  // Relance la recherche lorsque le type change
   useEffect(() => {
     if (searchTerm.trim() !== "") {
       performSearch(searchTerm, searchType);
     }
-  }, [searchType]); // Déclenché lorsque searchType change
+  }, [searchType]);
 
-  // Fonction pour vérifier si les résultats sont vides
+  // Vérifie si les résultats sont vides
   const isEmptyResults = () => {
     return (
       hasSearched &&
@@ -167,7 +166,15 @@ const AdvancedSearchBar = () => {
         <Box sx={{ mt: 3 }}>
           {searchResults.tweets && searchResults.tweets.length > 0 && (
             <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  mb: 2,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                }}
+              >
                 <TweetIcon /> Tweets
               </Typography>
               <Grid container spacing={3}>
@@ -191,18 +198,42 @@ const AdvancedSearchBar = () => {
 
           {searchResults.users && searchResults.users.length > 0 && (
             <Box sx={{ mb: 4 }}>
-              <Typography variant="h6" sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  mb: 2,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                }}
+              >
                 <UserIcon /> Utilisateurs
               </Typography>
               <Grid container spacing={3}>
                 {searchResults.users.map((user) => (
                   <Grid item xs={12} sm={6} md={4} key={user._id}>
-                    <Card>
+                    {/* La card entière est cliquable grâce à component={Link} */}
+                    <Card
+                      component={Link}
+                      to={`/user/${user.username}`}
+                      sx={{
+                        textDecoration: "none",
+                        color: "inherit",
+                        cursor: "pointer",
+                      }}
+                    >
                       <CardContent>
                         <List>
-                          <ListItem>
+                          <ListItem disablePadding>
                             <ListItemAvatar>
-                              <Avatar src={user.photo} alt={user.username} />
+                              <Avatar
+                                src={
+                                  user.photo
+                                    ? `${user.photo}`
+                                    : "https://via.placeholder.com/150?text=Avatar"
+                                }
+                                alt={user.username}
+                              />
                             </ListItemAvatar>
                             <ListItemText
                               primary={user.username}
@@ -220,7 +251,15 @@ const AdvancedSearchBar = () => {
 
           {searchResults.hashtags && searchResults.hashtags.length > 0 && (
             <Box>
-              <Typography variant="h6" sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  mb: 2,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                }}
+              >
                 <HashtagIcon /> Hashtags
               </Typography>
               <Grid container spacing={3}>
