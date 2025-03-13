@@ -7,27 +7,44 @@ const Replies = mongoose.model('Replies');
 exports.addComment = async (req, res) => {
     try {
         const { text } = req.body;
+
+        // Check if the user is authenticated
         if (!req.user) {
             return res.status(401).json({ message: 'Utilisateur non authentifié' });
         }
+
+        // Validate the comment text
         if (!text || text.trim() === '') {
             return res.status(400).json({ message: 'Le texte du commentaire est requis' });
         }
+
+        // Find the tweet
         const tweet = await Tweet.findById(req.params.id);
         if (!tweet) {
             return res.status(404).json({ message: 'Tweet non trouvé' });
         }
+
+        // Create the new comment
         const newComment = new Replies({
             text,
             author: req.user.id,
             idTweet: tweet._id,
-            date: new Date()
+            date: new Date(),
         });
+
+        // Save the comment
         await newComment.save();
+
+        // Add the comment ID to the tweet's comments array
         tweet.idcommentaires.push(newComment._id);
         await tweet.save();
 
-        // Ajouter notification à l'auteur du tweet
+        // Populate the author field with user details
+        const populatedComment = await Replies.findById(newComment._id)
+            .populate('author', 'username profilePicture') // Populate author details
+            .exec();
+
+        // Send a notification to the tweet author (if the commenter is not the author)
         if (tweet.author.toString() !== req.user.id) {
             await global.sendNotification({
                 userId: tweet.author,
@@ -35,17 +52,17 @@ exports.addComment = async (req, res) => {
                 triggeredBy: req.user.id,
                 contentId: tweet._id,
                 contentModel: 'Tweet',
-                read: false
+                read: false,
             });
         }
 
-        res.status(201).json(newComment);
+        // Return the populated comment
+        res.status(201).json(populatedComment);
     } catch (error) {
         console.error('Erreur lors de l\'ajout du commentaire:', error);
         res.status(500).json({ message: 'Erreur lors de l\'ajout du commentaire', error: error.message });
     }
 };
-
 
 // Répondre à un commentaire
 exports.replyToComment = async (req, res) => {
