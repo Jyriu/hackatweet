@@ -13,7 +13,7 @@ export const postTweet = async (content) => {
 export const fetchTweetsFromApi = async (pageNumber, userId) => {
   try {
     const response = await axios.get(
-      `${API_URL}/api/tweet/tweets?page=${pageNumber}&limit=10&userId=67d2bf42cf88a447e0f74e0d`
+      `${API_URL}/api/tweet/tweets?page=${pageNumber}&limit=10&userId=${userId}`,
     );
     return response.data;
   } catch (error) {
@@ -25,8 +25,7 @@ export const fetchTweetsFromApi = async (pageNumber, userId) => {
 export const fetchFollowingTweets = async (pageNumber, userId) => {
   try {
     const response = await axios.get(
-
-      `${API_URL}/api/tweet/allTweetsByFollowings?page=${pageNumber}&limit=10&userId=67d2bf42cf88a447e0f74e0d`,
+      `${API_URL}/api/tweet/allTweetsByFollowings?page=${pageNumber}&limit=10&userId=${userId}`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`
@@ -158,19 +157,19 @@ export const addComment = async (tweetId, text) => {
 // Fetch comments for a tweet
 export const getTweetComments = async (tweetId, page = 1, limit = 5) => {
   try {
-      const response = await axios.get(`${API_URL}/api/tweet/allComments/${tweetId}`, {
-          params: {
-              page,
-              limit
-          },
-          headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`
-          }
-      });
-      return response.data;
+    const response = await axios.get(`${API_URL}/api/tweet/allComments/${tweetId}`, {
+      params: {
+        page,
+        limit
+      },
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+      }
+    });
+    return response.data;
   } catch (error) {
-      console.error("Error fetching tweet comments:", error);
-      throw error;
+    console.error("Error fetching tweet comments:", error);
+    throw error;
   }
 };
 

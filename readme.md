@@ -44,7 +44,7 @@ To install and run the project locally, follow these steps:
    MONGODB_URI=mongodb://localhost:27017/hackatweet
    PORT=5001
    JWT_SECRET=secret
-   
+
    Fronend:
    VITE_BACKEND_URL=http://localhost:5001
    ```
@@ -53,6 +53,16 @@ To install and run the project locally, follow these steps:
    ```bash
    npm start
    ```
+
+## Lancement via Docker Compose
+
+Assurez-vous d'avoir Docker et Docker Compose installés.
+
+1. Construisez et lancez les containers :
+   ```bash
+   docker-compose up --build
+   ```
+2. Accédez à l'application sur http://localhost:5001 (ou le port défini dans vos variables d'environnement).
 
 ## Usage
 
