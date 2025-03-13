@@ -7,21 +7,20 @@ const Notification = mongoose.model("Notification");
 exports.getUserByUsername = async (req, res) => {
   try {
     const { username } = req.params;
-
-    const user = await User.findOne({ username }).select('-password');
-
+    const user = await User.findOne({ username })
+      .populate("followers", "_id username photo bio")
+      .populate("following", "_id username photo bio")
+      .select("-password");
     if (!user) {
-      console.warn(`⚠️ [User] Utilisateur non trouvé avec le username: ${username}`);
       return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
-
-    console.log(`ℹ️ [User] Profil récupéré: ${username}`);
     res.json(user);
   } catch (error) {
-    console.error(`📛 [User] Erreur lors de la récupération du profil: ${error.message}`, error);
-    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    console.error("Erreur lors de la récupération de l'utilisateur:", error);
+    res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
+
 
 // Mettre à jour le profil utilisateur
 exports.updateProfile = async (req, res) => {
@@ -404,16 +403,16 @@ exports.searchUsers = async (req, res) => {
 };
 
 // récupérer l'utilisateur par son nom
-exports.getUserByUsername = async (req, res) => {
-  try {
-    const username = req.params.username;
-    const user = await User.findOne({ username });
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    res.json(user);
-  } catch (error) {
-    console.error("Error fetching user by username:", error);
-    res.status(500).json({ message: "Error fetching user" });
-  }
-};
+// exports.getUserByUsername = async (req, res) => {
+//   try {
+//     const username = req.params.username;
+//     const user = await User.findOne({ username });
+//     if (!user) {
+//       return res.status(404).json({ message: "User not found" });
+//     }
+//     res.json(user);
+//   } catch (error) {
+//     console.error("Error fetching user by username:", error);
+//     res.status(500).json({ message: "Error fetching user" });
+//   }
+// };

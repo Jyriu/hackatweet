@@ -18,9 +18,8 @@ const Home = () => {
   const [showFollowingTweets, setShowFollowingTweets] = useState(false);
   const isFetching = useRef(false);
   const lastTweetRef = useRef(null);
-  // const user = useSelector((state) => state.user.currentUser);
-  const user = JSON.parse(localStorage.getItem("user")); // Parse the user object
-
+  const user = useSelector((state) => state.user.currentUser);
+  //const user = JSON.parse(localStorage.getItem("user")); // Parse the user object
   const userId = user?.id;
   const navigate = useNavigate(); // NEW hook
 
