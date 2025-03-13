@@ -10,26 +10,26 @@ import {
 } from '../Store';
 import {
   addMessage,
-  markMessageAsRead,
+  markConversationAsRead,
 } from '../Store';
 
 const SOCKET_CONNECT = 'socket/connect';
 const SOCKET_DISCONNECT = 'socket/disconnect';
 const SEND_MESSAGE = 'socket/sendMessage';
-const MARK_MESSAGE_READ = 'socket/markMessageRead';
+const MARK_CONVERSATION_READ = 'socket/markConversationRead';
 const GET_ONLINE_USERS = 'socket/getOnlineUsers';
 const USER_TYPING = 'socket/userTyping';
 
 // Actions créateurs pour le middleware
 export const connectSocket = () => ({ type: SOCKET_CONNECT });
 export const disconnectSocket = () => ({ type: SOCKET_DISCONNECT });
-export const sendMessage = (conversationId, content, recipientId) => ({
+export const sendMessage = (conversationId, content) => ({
   type: SEND_MESSAGE,
-  payload: { conversationId, content, recipientId }
+  payload: { conversationId, content }
 });
-export const sendMarkMessageRead = (messageId) => ({
-  type: MARK_MESSAGE_READ,
-  payload: { messageId }
+export const sendMarkConversationRead = (conversationId) => ({
+  type: MARK_CONVERSATION_READ,
+  payload: { conversationId }
 });
 export const getOnlineUsers = () => ({ type: GET_ONLINE_USERS });
 export const sendUserTyping = (conversationId) => ({
@@ -81,11 +81,24 @@ const socketMiddleware = store => {
 
         // Écouter les nouveaux messages
         socket.on('new_message', (message) => {
-          const currentUser = getState().user?.currentUser?._id; // Utiliser currentUser._id au lieu de user.id
-          const isFromCurrentUser = message.sender === currentUser;
+          console.log('Nouveau message reçu:', message);
+          const currentUser = getState().user?.currentUser?.id; // ID de l'utilisateur connecté
+          
+          // Déterminer si le message vient de l'utilisateur courant
+          const isFromCurrentUser = message.sender._id === currentUser;
+          
+          // Utiliser l'ID de conversation inclus dans le message
+          const conversationId = message.conversation;
+          
+          if (!conversationId) {
+            console.error('Message reçu sans ID de conversation');
+            return;
+          }
+          
+          console.log(`Ajout du message à la conversation ${conversationId}, de l'utilisateur: ${isFromCurrentUser ? 'moi' : 'autre personne'}`);
           
           dispatch(addMessage({
-            conversationId: message.conversation,
+            conversationId,
             message: {
               ...message,
               isFromCurrentUser
@@ -95,8 +108,18 @@ const socketMiddleware = store => {
 
         // Message envoyé avec succès
         socket.on('message_sent', (message) => {
+          console.log('Message envoyé avec succès:', message);
+          
+          // Utiliser l'ID de conversation inclus dans le message
+          const conversationId = message.conversation;
+          
+          if (!conversationId) {
+            console.error('Message envoyé sans ID de conversation');
+            return;
+          }
+          
           dispatch(addMessage({
-            conversationId: message.conversation,
+            conversationId,
             message: {
               ...message,
               isFromCurrentUser: true
@@ -104,12 +127,19 @@ const socketMiddleware = store => {
           }));
         });
 
-        // Message marqué comme lu
-        socket.on('message_read', (data) => {
-          dispatch(markMessageAsRead({
+        // Conversation marquée comme lue
+        socket.on('conversation_read', (data) => {
+          dispatch(markConversationAsRead({
             conversationId: data.conversationId,
-            messageId: data.messageId,
-            userId: data.readBy
+            count: data.count
+          }));
+        });
+
+        // L'autre utilisateur a lu les messages
+        socket.on('other_user_read_messages', (data) => {
+          dispatch(markConversationAsRead({
+            conversationId: data.conversationId,
+            userId: data.userId
           }));
         });
 
@@ -148,16 +178,15 @@ const socketMiddleware = store => {
         if (socket) {
           socket.emit('send_message', {
             conversationId: payload.conversationId,
-            recipientId: payload.recipientId,
             content: payload.content
           });
         }
         break;
 
-      case MARK_MESSAGE_READ:
+      case MARK_CONVERSATION_READ:
         if (socket) {
-          socket.emit('mark_message_read', {
-            messageId: payload.messageId
+          socket.emit('mark_conversation_read', {
+            conversationId: payload.conversationId
           });
         }
         break;
