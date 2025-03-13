@@ -34,6 +34,7 @@ import Register from "./pages/Register";
 import Settings from "./pages/Settings";
 import UserProfile from "./pages/UserProfile";
 import Chat from "./pages/Chat";
+import Search from "./pages/AdvancedSearchBar"
 
 // Redux actions
 import {
@@ -74,6 +75,16 @@ function NavigationButtons() {
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+
+<Tooltip title="Messages">
+        <IconButton
+          color="inherit"
+          onClick={() => navigate("/search")}
+          sx={{ fontSize: "1.5rem" }}
+        >
+          Search
+        </IconButton>
+      </Tooltip>
       <Tooltip title="Messages">
         <IconButton
           color="inherit"
@@ -195,6 +206,8 @@ function AppContent() {
       <Box sx={{ paddingTop: user ? "64px" : 0 }}>
         <Routes>
           <Route path="/" element={<ProtectedRoute element={<Home />} />} />
+          <Route path="/search" element={<ProtectedRoute element={<Search/>} />} />
+
           <Route
             path="/profile"
             element={<ProtectedRoute element={<Profile />} />}
