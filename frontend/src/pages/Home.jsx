@@ -20,7 +20,7 @@ const Home = () => {
   const lastTweetRef = useRef(null);
   const user = useSelector((state) => state.user.currentUser);
   //const user = JSON.parse(localStorage.getItem("user")); // Parse the user object
-  const userId = user?.id;
+  const userId = user?._id;
   const navigate = useNavigate();
 
 
@@ -32,7 +32,6 @@ const Home = () => {
     async (pageNumber) => {
       if (isFetching.current || !hasMore) return;
       isFetching.current = true;
-
       try {
         setLoading(true);
         const data = await fetchTweetsFromApi(pageNumber, userId);

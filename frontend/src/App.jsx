@@ -35,7 +35,7 @@ import Register from "./pages/Register";
 import Settings from "./pages/Settings";
 import UserProfile from "./pages/UserProfile";
 import Chat from "./pages/Chat";
-import Search from "./pages/AdvancedSearchBar"
+import Search from "./pages/AdvancedSearchBar";
 
 // Redux actions
 import {
@@ -75,8 +75,7 @@ function NavigationButtons() {
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-
-<Tooltip title="Messages">
+      <Tooltip title="Messages">
         <IconButton
           color="inherit"
           onClick={() => navigate("/search")}
@@ -94,17 +93,23 @@ function NavigationButtons() {
           <ChatIcon fontSize="large" />
         </IconButton>
       </Tooltip>
-      <Tooltip title="Notifications">
-        <IconButton
-          color="inherit"
-          onClick={() => navigate("/notifications")}
-          sx={{ fontSize: "1.5rem" }}
-        >
-          <Badge badgeContent={unreadCount} color="error">
-            <NotificationsIcon fontSize="large" />
-          </Badge>
-        </IconButton>
-      </Tooltip>
+
+      {/* Conditionally render the notification icon */}
+      {user.notifOn
+ && (
+        <Tooltip title="Notifications">
+          <IconButton
+            color="inherit"
+            onClick={() => navigate("/notifications")}
+            sx={{ fontSize: "1.5rem" }}
+          >
+            <Badge badgeContent={unreadCount} color="error">
+              <NotificationsIcon fontSize="large" />
+            </Badge>
+          </IconButton>
+        </Tooltip>
+      )}
+
       <Tooltip title="Profile">
         <IconButton
           color="inherit"
@@ -153,8 +158,6 @@ function LogoutButton() {
 }
 
 // Composant wrapper pour la page UserProfile
-// Si le pseudo dans l'URL correspond à celui de l'utilisateur connecté,
-// redirige vers la page /profile
 const UserProfileWrapper = () => {
   const { username } = useParams();
   const currentUser = useSelector((state) => state.user.currentUser);
@@ -217,8 +220,7 @@ function AppContent() {
       <Box sx={{ paddingTop: user ? "64px" : 0 }}>
         <Routes>
           <Route path="/" element={<ProtectedRoute element={<Home />} />} />
-          <Route path="/search" element={<ProtectedRoute element={<Search/>} />} />
-
+          <Route path="/search" element={<ProtectedRoute element={<Search />} />} />
           <Route
             path="/profile"
             element={<ProtectedRoute element={<Profile />} />}
@@ -259,7 +261,6 @@ const App = () => {
   const isConnected = useSelector((state) => state.socket.connected);
 
   useEffect(() => {
-    // Charger l'utilisateur depuis l'API seulement si nous avons un token mais pas d'utilisateur
     if (token && !user) {
       dispatch(loadUser());
     }
