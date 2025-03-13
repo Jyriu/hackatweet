@@ -28,7 +28,7 @@ const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
   const commentsPerPage = 5;
 
   const API_URL = import.meta.env.VITE_BACKEND_URL;
- 
+ console.log(tweet)
 
   // Check if the tweet is liked or bookmarked by the current user
   useEffect(() => {
@@ -226,20 +226,13 @@ const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
 
         {/* Action Buttons */}
         <Box sx={{ mt: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Badge badgeContent={likeCount} sx={{ "& .MuiBadge-badge": { backgroundColor: liked ? "red" : "default", color: "white" } }}>
-            <IconButton
-              onClick={handleLike}
-              sx={{
-                backgroundColor: liked ? "rgba(255, 0, 0, 0.1)" : "transparent",
-                borderRadius: "50%",
-                "&:hover": {
-                  backgroundColor: liked ? "rgba(255, 0, 0, 0.2)" : "rgba(0, 0, 0, 0.04)",
-                },
-              }}
-            >
-              <FavoriteIcon sx={{ color: liked ? "red" : "inherit" }} />
-            </IconButton>
-          </Badge>
+        
+        <div className="like-button-container">
+  <button onClick={handleLike} className={`like-button ${liked ? 'liked' : ''}`}>
+    <FavoriteIcon />
+    <span className="like-count">{tweet.userLikes.length}</span>
+  </button>
+</div>
 
           <Badge badgeContent={localRetweetCount} color="primary">
             <IconButton onClick={handleRetweet} color={retweeted ? "success" : "default"}>
@@ -251,14 +244,13 @@ const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
             <ChatBubbleOutlineIcon />
           </IconButton>
 
-          <Badge badgeContent={bookmarkCount} color="secondary">
-            <IconButton
-              onClick={handleBookmark}
-              color={isBookmarked ? "primary" : "default"}
-            >
-              {isBookmarked ? <BookmarkIcon /> : <BookmarkBorderIcon />}
-            </IconButton>
-          </Badge>
+          <div className="bookmark-button-container">
+  <button onClick={handleBookmark} className={`bookmark-button ${isBookmarked ? 'bookmarked' : ''}`}>
+    {isBookmarked ? <BookmarkIcon /> : <BookmarkBorderIcon />}
+    <span className="bookmark-count">{bookmarkCount}</span>
+  </button>
+</div>
+
         </Box>
 
         {/* Comments Section */}
