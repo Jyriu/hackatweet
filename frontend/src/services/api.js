@@ -9,10 +9,29 @@ export const postTweet = async (content) => {
   return response.data;
 };
 
+
 export const fetchTweetsFromApi = async (pageNumber, userId) => {
   try {
     const response = await axios.get(
-      `${API_URL}/api/tweet/tweets?page=${pageNumber}&limit=10&userId=${userId}`
+      `${API_URL}/api/tweet/tweets?page=${pageNumber}&limit=10&userId=67d2bf42cf88a447e0f74e0d`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching tweets:", error);
+    throw error; // Re-throw the error to be handled in the component
+  }
+};
+
+export const fetchFollowingTweets = async (pageNumber, userId) => {
+  try {
+    const response = await axios.get(
+
+      `${API_URL}/api/tweet/allTweetsByFollowings?page=${pageNumber}&limit=10&userId=67d2bf42cf88a447e0f74e0d`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
+      }
     );
     return response.data;
   } catch (error) {
@@ -22,17 +41,17 @@ export const fetchTweetsFromApi = async (pageNumber, userId) => {
 };
 
 export const saveEmotionToApi = async (userId, tweetId, emotion) => {
-    try {
-        const response = await axios.post(`${API_URL}/api/emotions/emotions/`, {
-            user_id: userId,
-            tweet_id: tweetId,
-            emotion: emotion,
-        });
-        return response.data;
-    } catch (error) {
-        console.error("Error saving emotion:", error);
-        throw error; // Re-throw the error
-    }
+  try {
+    const response = await axios.post(`${API_URL}/api/emotions/emotions/`, {
+      user_id: userId,
+      tweet_id: tweetId,
+      emotion: emotion,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error saving emotion:", error);
+    throw error; // Re-throw the error
+  }
 };
 
 export const retweetTweet = async (tweetId, retweetContent, mediaUrl, hashtags) => {
