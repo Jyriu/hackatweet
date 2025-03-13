@@ -31,11 +31,10 @@ exports.searchUsers = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la recherche d\'utilisateurs', error: error.message });
     }
 };
-
-// Recherche avancée
+// Recherche avancée avec pagination
 exports.advancedSearch = async (req, res) => {
     try {
-        const { query, type, startDate, endDate, sortBy } = req.body;
+        const { query, type, startDate, endDate, sortBy, page = 1, limit = 10 } = req.body;
 
         if (!query) {
             return res.status(400).json({ message: 'Terme de recherche requis' });
@@ -64,9 +63,11 @@ exports.advancedSearch = async (req, res) => {
             }
         }
 
+        const skip = (page - 1) * limit;
+
         if (type === 'hashtags') {
             searchCriteria.hashtags = regex;
-            const tweets = await Tweet.find(searchCriteria).sort(sortCriteria).populate('author', 'username');
+            const tweets = await Tweet.find(searchCriteria).sort(sortCriteria).skip(skip).limit(limit).populate('author', 'username');
             results.hashtags = [...new Set(tweets.flatMap(tweet => tweet.hashtags.filter(hashtag => regex.test(hashtag))))];
         } else if (type === 'users') {
             searchCriteria = {
@@ -76,16 +77,15 @@ exports.advancedSearch = async (req, res) => {
                     { prenom: regex }
                 ]
             };
-            results.users = await User.find(searchCriteria).select('username nom prenom photo bio');
+            results.users = await User.find(searchCriteria).select('username nom prenom photo bio').skip(skip).limit(limit);
         } else if (type === 'tweets') {
             searchCriteria.text = regex;
-            results.tweets = await Tweet.find(searchCriteria).sort(sortCriteria).populate('author', 'username');
+            results.tweets = await Tweet.find(searchCriteria).sort(sortCriteria).skip(skip).limit(limit).populate('author', 'username');
         } else {
             searchCriteria.text = regex;
-            results.tweets = await Tweet.find(searchCriteria).sort(sortCriteria).populate('author', 'username');
+            results.tweets = await Tweet.find(searchCriteria).sort(sortCriteria).skip(skip).limit(limit).populate('author', 'username');
             searchCriteria.hashtags = regex;
-            const tweets = await Tweet.find(searchCriteria).sort(sortCriteria).populate('author', 'username');
-            // results.tweets = tweets;
+            const tweets = await Tweet.find(searchCriteria).sort(sortCriteria).skip(skip).limit(limit).populate('author', 'username');
             results.hashtags = [...new Set(tweets.flatMap(tweet => tweet.hashtags.filter(hashtag => regex.test(hashtag))))];
             searchCriteria = {
                 $or: [
