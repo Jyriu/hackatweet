@@ -297,16 +297,8 @@ function App() {
   return (
     <Router>
       <CssBaseline />
-      <Box
-        sx={{
-          minHeight: "100vh",
-          // background: "linear-gradient(135deg, #FF6B6B, #4ECDC4)",
-          transition: "background 0.5s ease",
-        }}
-      >
-          <AppContent />
-      </Router>
-      </Box>
+      <AppContent />
+    </Router>
   );
 }
 
