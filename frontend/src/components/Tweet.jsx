@@ -219,5 +219,3 @@ const Tweet = ({ tweet, onInView }) => {
 };
 
 export default Tweet;
-
-
