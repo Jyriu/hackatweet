@@ -24,6 +24,7 @@ import NotificationsIcon from "@mui/icons-material/Notifications";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
 import ChatIcon from "@mui/icons-material/Chat";
+import SearchIcon from "@mui/icons-material/Search"; // Nouvelle icône loupe
 
 // Pages
 import Home from "./pages/Home";
@@ -73,35 +74,37 @@ function NavigationButtons() {
 
   if (!user) return null;
 
+  const iconButtonStyle = {
+    fontSize: "1.5rem",
+    transition: "transform 0.3s ease",
+    "&:hover": { transform: "scale(1.1)" },
+    color: "#001f3f", // Couleur sombre pour les boutons
+  };
+
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-      <Tooltip title="Messages">
+      <Tooltip title="Recherche">
         <IconButton
-          color="inherit"
           onClick={() => navigate("/search")}
-          sx={{ fontSize: "1.5rem" }}
+          sx={iconButtonStyle}
         >
-          Search
+          <SearchIcon fontSize="large" />
         </IconButton>
       </Tooltip>
       <Tooltip title="Messages">
         <IconButton
-          color="inherit"
           onClick={() => navigate("/chat")}
-          sx={{ fontSize: "1.5rem" }}
+          sx={iconButtonStyle}
         >
           <ChatIcon fontSize="large" />
         </IconButton>
       </Tooltip>
 
-      {/* Conditionally render the notification icon */}
-      {user.notifOn
- && (
+      {user.notifOn && (
         <Tooltip title="Notifications">
           <IconButton
-            color="inherit"
             onClick={() => navigate("/notifications")}
-            sx={{ fontSize: "1.5rem" }}
+            sx={iconButtonStyle}
           >
             <Badge badgeContent={unreadCount} color="error">
               <NotificationsIcon fontSize="large" />
@@ -110,11 +113,10 @@ function NavigationButtons() {
         </Tooltip>
       )}
 
-      <Tooltip title="Profile">
+      <Tooltip title="Profil">
         <IconButton
-          color="inherit"
           onClick={() => navigate("/profile")}
-          sx={{ fontSize: "1.5rem" }}
+          sx={iconButtonStyle}
         >
           <Avatar
             src={
@@ -149,6 +151,9 @@ function LogoutButton() {
         sx={{
           fontSize: "1.5rem",
           padding: "8px",
+          transition: "transform 0.3s ease",
+          "&:hover": { transform: "scale(1.1)" },
+          color: "#001f3f",
         }}
       >
         <LogoutIcon fontSize="large" />
@@ -176,10 +181,12 @@ function AppContent() {
         <AppBar
           position="fixed"
           sx={{
-            backgroundColor: "#f5f8fa",
+            backgroundColor: "rgba(255, 255, 255, 0.9)",
+            backdropFilter: "blur(10px)",
             color: "#545f69",
-            boxShadow: "0px 0px 0px rgba(0, 0, 0, 0.1)",
+            boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.1)",
             zIndex: 1200,
+            transition: "background-color 0.3s ease",
           }}
         >
           <Toolbar>
@@ -190,13 +197,10 @@ function AppContent() {
                 fontSize: "2rem",
                 flexGrow: 1,
                 fontWeight: "bold",
-                color: "primary.main",
-                fontFamily: "'Poppins', sans-serif",
+                color: "#75B7B0", // Couleur rappelant le fond d'auth
+                fontFamily: "'Montserrat', sans-serif", // Police adaptée pour un logo
                 textDecoration: "none",
                 cursor: "pointer",
-                "&:hover": {
-                  textDecoration: "none",
-                },
               }}
             >
               HackaTweet
@@ -204,10 +208,14 @@ function AppContent() {
             <NavigationButtons />
             <Tooltip title="Paramètres">
               <IconButton
-                color="inherit"
                 component={Link}
                 to="/settings"
-                sx={{ fontSize: "1.5rem" }}
+                sx={{
+                  fontSize: "1.5rem",
+                  transition: "transform 0.3s ease",
+                  "&:hover": { transform: "scale(1.1)" },
+                  color: "#001f3f",
+                }}
               >
                 <SettingsIcon fontSize="large" />
               </IconButton>
@@ -221,10 +229,7 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<ProtectedRoute element={<Home />} />} />
           <Route path="/search" element={<ProtectedRoute element={<Search />} />} />
-          <Route
-            path="/profile"
-            element={<ProtectedRoute element={<Profile />} />}
-          />
+          <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
           <Route path="/auth" element={<AuthRoute element={<Auth />} />} />
           <Route
             path="/notifications"
@@ -283,9 +288,17 @@ const App = () => {
   return (
     <>
       <CssBaseline />
-      <Router>
-        <AppContent />
-      </Router>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          // background: "linear-gradient(135deg, #FF6B6B, #4ECDC4)",
+          transition: "background 0.5s ease",
+        }}
+      >
+        <Router>
+          <AppContent />
+        </Router>
+      </Box>
     </>
   );
 };
