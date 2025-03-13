@@ -5,7 +5,7 @@ const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
 // Récupérer toutes les notifications d'un utilisateur
 export const fetchNotifications = async () => {
   try {
-    const response = await axios.get(`${API_URL}/notifications`, {
+    const response = await axios.get(`${API_URL}/api/notifications`, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('token')}`,
       },
@@ -21,7 +21,7 @@ export const fetchNotifications = async () => {
 export const markNotificationAsRead = async (notificationId) => {
   try {
     const response = await axios.put(
-      `${API_URL}/notifications/${notificationId}/read`,
+      `${API_URL}/api/notifications/${notificationId}/read`,
       {},
       {
         headers: {
@@ -40,7 +40,7 @@ export const markNotificationAsRead = async (notificationId) => {
 export const markAllNotificationsAsRead = async () => {
   try {
     const response = await axios.put(
-      `${API_URL}/notifications/read-all`,
+      `${API_URL}/api/notifications/mark-all-read`,
       {},
       {
         headers: {
@@ -58,7 +58,7 @@ export const markAllNotificationsAsRead = async () => {
 // Supprimer une notification
 export const deleteNotification = async (notificationId) => {
   try {
-    const response = await axios.delete(`${API_URL}/notifications/${notificationId}`, {
+    const response = await axios.delete(`${API_URL}/api/notifications/${notificationId}`, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('token')}`,
       },
@@ -73,14 +73,14 @@ export const deleteNotification = async (notificationId) => {
 // Récupérer le nombre de notifications non lues
 export const getUnreadNotificationsCount = async () => {
   try {
-    const response = await axios.get(`${API_URL}/notifications/unread-count`, {
+    const response = await axios.get(`${API_URL}/api/notifications/unread`, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('token')}`,
       },
     });
-    return response.data.count;
+    return response.data.length; // Retourne le nombre d'éléments dans le tableau
   } catch (error) {
     console.error('Erreur lors de la récupération du nombre de notifications non lues:', error);
-    throw error;
+    return 0; // En cas d'erreur, retourne 0 par défaut
   }
 }; 

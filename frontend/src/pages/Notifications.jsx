@@ -72,9 +72,9 @@ const Notifications = () => {
     switch (type) {
       case 'like':
         return <FavoriteIcon color="error" />;
-      case 'follow':
+      case 'abonnement':
         return <PersonAddIcon color="primary" />;
-      case 'reply':
+      case 'commentaire':
         return <ChatIcon color="info" />;
       case 'retweet':
         return <RepeatIcon color="success" />;
@@ -87,14 +87,14 @@ const Notifications = () => {
 
   // Récupérer le texte de la notification en fonction de son type
   const getNotificationText = (notification) => {
-    const username = notification.fromUser?.username || 'Un utilisateur';
+    const username = notification.triggeredBy?.username || 'Un utilisateur';
     switch (notification.type) {
       case 'like':
         return `${username} a aimé votre tweet`;
-      case 'follow':
+      case 'abonnement':
         return `${username} a commencé à vous suivre`;
-      case 'reply':
-        return `${username} a répondu à votre tweet`;
+      case 'commentaire':
+        return `${username} a commenté votre tweet`;
       case 'retweet':
         return `${username} a retweeté votre tweet`;
       case 'mention':
@@ -155,8 +155,8 @@ const Notifications = () => {
           <Tab label="Toutes" value="all" />
           <Tab label="Mentions" value="mention" />
           <Tab label="J'aime" value="like" />
-          <Tab label="Réponses" value="reply" />
-          <Tab label="Abonnements" value="follow" />
+          <Tab label="Commentaires" value="commentaire" />
+          <Tab label="Abonnements" value="abonnement" />
           <Tab label="Retweets" value="retweet" />
         </Tabs>
       </Paper>

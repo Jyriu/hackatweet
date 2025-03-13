@@ -6,257 +6,263 @@ import {
   Button,
   IconButton,
   TextField,
-  Snackbar,
-  Alert,
+  Badge,
+  Avatar,
   Box,
 } from "@mui/material";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import RepeatIcon from "@mui/icons-material/Repeat";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
-import axios from "axios";
+import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
+import BookmarkIcon from "@mui/icons-material/Bookmark";
+import RetweetDialog from "./RetweetDialog";
+import { likeTweet, bookmarkTweet } from "../services/api";
 
-const url = import.meta.env.VITE_BACKEND_URL;
-
-const Tweet = ({ tweet }) => {
-  const [likesCount, setLikesCount] = useState(tweet.likes || 0);
-  const [isLiking, setIsLiking] = useState(false);
+const Tweet = ({ tweet, user, onUpdateTweet, onRetweet }) => {
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(tweet?.userLikes?.length || 0);
+  const [retweeted, setRetweeted] = useState(false);
+  const [localRetweetCount, setLocalRetweetCount] = useState(tweet?.retweets?.length || 0);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [bookmarkCount, setBookmarkCount] = useState(tweet?.usersave?.length || 0);
+  const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState([]);
-  const [showCommentField, setShowCommentField] = useState(false);
-  const [commentText, setCommentText] = useState("");
-  const [isRetweeting, setIsRetweeting] = useState(false);
-  const [retweetText, setRetweetText] = useState("");
-  const [showRetweetField, setShowRetweetField] = useState(false);
-  const [error, setError] = useState(null);
-  const [originalTweet, setOriginalTweet] = useState(null); // Pour stocker le tweet original
+  const [newComment, setNewComment] = useState("");
+  const [openRetweetDialog, setOpenRetweetDialog] = useState(false);
+  const current_user = user;
+  const currentUserId = current_user?.id;
 
-  // Récupérer les commentaires
   useEffect(() => {
-    const fetchComments = async () => {
-      try {
-        const response = await axios.get(`${url}/api/tweet/comments/${tweet._id}/`);
-        setComments(response.data);
-      } catch (error) {
-        console.error("Erreur lors de la récupération des commentaires:", error);
-        setError("Erreur lors de la récupération des commentaires");
-      }
-    };
+    setLiked(tweet?.userLikes?.includes(currentUserId));
+    setIsBookmarked(tweet?.usersave?.includes(currentUserId));
+  }, [tweet?.userLikes, tweet?.usersave]);
 
-    fetchComments();
-  }, [tweet._id]);
-
-  // Récupérer le tweet original si tweet.originalTweet existe
-  useEffect(() => {
-    if (tweet.originalTweet) {
-      const fetchOriginalTweet = async () => {
-        try {
-          const response = await axios.get(`${url}/api/tweet/gettweet/${tweet.originalTweet}`);
-          setOriginalTweet(response.data); // Stocker le tweet original
-        } catch (error) {
-          console.error("Erreur lors de la récupération du tweet original:", error);
-          setError("Erreur lors de la récupération du tweet original");
-        }
-      };
-
-      fetchOriginalTweet();
-    }
-  }, [tweet.originalTweet]);
-
-  // Gérer le like
   const handleLike = async () => {
-    if (isLiking) return;
-    setIsLiking(true);
-
     try {
-      const token = localStorage.getItem("token");
-      const response = await axios.post(
-        `${url}/api/tweet/like/${tweet._id}/`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      setLikesCount(response.data.tweet.userLikes.length);
+      const response = await likeTweet(tweet._id);
+      setLiked(!liked);
+      setLikeCount(response?.tweet?.userLikes?.length);
+      onUpdateTweet(response.tweet);
     } catch (error) {
-      console.error("Erreur lors du like du tweet:", error);
-      setError("Erreur lors du like du tweet");
-    } finally {
-      setIsLiking(false);
+      console.error("Error liking tweet:", error);
     }
   };
 
-  // Gérer le retweet
-  const handleRetweet = async () => {
-    if (isRetweeting) return;
-    setIsRetweeting(true);
+  const handleRetweet = () => {
+    setOpenRetweetDialog(true);
+  };
 
+  const handleCloseRetweetDialog = () => {
+    setOpenRetweetDialog(false);
+  };
+
+  const handleRetweetSubmit = (newRetweet) => {
+    setRetweeted(true);
+    setLocalRetweetCount(prevCount => prevCount + 1);
+    onRetweet(newRetweet);
+  };
+
+  const handleBookmark = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await axios.post(
-        `${url}/api/tweet/retweet/${tweet._id}/`,
-        { text: retweetText }, // Envoyer le texte du retweet
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      setRetweetText(""); // Réinitialiser le champ de texte
-      setShowRetweetField(false); // Masquer le champ de texte après envoi
+      const response = await bookmarkTweet(tweet._id);
+      setIsBookmarked(!isBookmarked);
+      setBookmarkCount(response?.tweet?.usersave?.length);
+      onUpdateTweet(response.tweet);
     } catch (error) {
-      console.error("Erreur lors du retweet:", error);
-      setError("Erreur lors du retweet");
-    } finally {
-      setIsRetweeting(false);
+      console.error("Error bookmarking tweet:", error);
     }
   };
 
-  // Gérer l'ajout d'un commentaire
-  const handleAddComment = async () => {
-    if (commentText.trim() === "") return;
-
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.post(
-        `${url}/api/tweet/comment/${tweet._id}/`,
-        { text: commentText },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      setComments([...comments, response.data]);
-      setCommentText("");
-      setShowCommentField(false);
-    } catch (error) {
-      console.error("Erreur lors de l'ajout du commentaire:", error);
-      setError("Erreur lors de l'ajout du commentaire");
+  const handleAddComment = () => {
+    if (newComment.trim() !== "") {
+      setComments([...comments, newComment]);
+      setNewComment("");
+      // TODO: Implement comment functionality with backend
     }
+  };
+
+  const renderHashtags = (hashtags) => {
+    return hashtags.map((hashtag, index) => (
+      <Typography
+        key={index}
+        variant="body2"
+        color="primary"
+        sx={{ display: "inline", marginRight: "8px" }}
+      >
+        #{hashtag}
+      </Typography>
+    ));
+  };
+
+  const renderOriginalTweet = (originalTweet) => {
+    return (
+      <Box
+        sx={{
+          border: "1px solid #ddd",
+          borderRadius: "8px",
+          padding: "10px",
+          marginTop: "16px",
+          backgroundColor: "#f9f9f9",
+        }}
+      >
+        <Typography variant="subtitle2" color="textSecondary">
+          Retweeted from @{originalTweet?.author?.username}
+        </Typography>
+        <Typography variant="body1" sx={{ marginTop: "8px" }}>
+          {originalTweet.text}
+        </Typography>
+        {originalTweet.hashtags && (
+          <Box sx={{ marginTop: "8px" }}>{renderHashtags(originalTweet.hashtags)}</Box>
+        )}
+        {originalTweet.link && (
+          <Typography
+            variant="body2"
+            color="primary"
+            sx={{ marginTop: "8px", wordWrap: "break-word" }}
+          >
+            <a href={originalTweet.link} target="_blank" rel="noopener noreferrer">
+              {originalTweet.link}
+            </a>
+          </Typography>
+        )}
+        {originalTweet.mediaUrl && (
+          <img
+            src={`http://localhost:5001${originalTweet.mediaUrl}`}
+            alt="Original Tweet Media"
+            style={{ width: "100%", borderRadius: "8px", marginTop: "10px" }}
+          />
+        )}
+      </Box>
+    );
   };
 
   return (
     <Card sx={{ marginBottom: 2, padding: 2 }}>
       <CardContent>
-        <Typography variant="h6">{tweet.text}</Typography>
+        <Box display="flex" alignItems="center" mb={2}>
+          <Avatar src={tweet?.author?.profilePicture} alt={tweet?.author?.username} />
+          <Box ml={2}>
+            <Typography variant="subtitle1">{tweet?.author?.name}</Typography>
+            <Typography variant="body2" color="textSecondary">
+              @{tweet?.author?.username}
+            </Typography>
+          </Box>
+        </Box>
+
+        <Typography variant="body1">{tweet.text}</Typography>
+
+        {tweet.hashtags && (
+          <Box sx={{ marginTop: "8px" }}>{renderHashtags(tweet.hashtags)}</Box>
+        )}
+
+        {tweet.link && (
+          <Typography
+            variant="body2"
+            color="primary"
+            sx={{ marginTop: "8px", wordWrap: "break-word" }}
+          >
+            <a href={tweet.link} target="_blank" rel="noopener noreferrer">
+              {tweet.link}
+            </a>
+          </Typography>
+        )}
+
         {tweet.mediaUrl && (
           <img
-            src={tweet.mediaUrl}
-            alt="Tweet media"
-            style={{ width: "100%", borderRadius: "10px", marginTop: "10px" }}
+            src={`http://localhost:5001${tweet.mediaUrl}`}
+            alt="Tweet Media"
+            style={{ width: "100%", borderRadius: "8px", marginTop: "10px" }}
           />
         )}
 
-        {/* Afficher le tweet original s'il existe */}
-        {originalTweet && (
-          <Box sx={{ marginTop: 2, padding: 2, borderLeft: "2px solid #ccc", backgroundColor: "#f9f9f9" }}>
-            <Typography variant="body2" color="text.secondary">
-              Tweet original :
-            </Typography>
-            <Typography variant="body2" color="text.primary" sx={{ marginTop: 1 }}>
-              {originalTweet.text}
-            </Typography>
-            {originalTweet.mediaUrl && (
-              <img
-                src={originalTweet.mediaUrl}
-                alt="Media du tweet original"
-                style={{ width: "100%", borderRadius: "10px", marginTop: "10px" }}
-              />
-            )}
-            <Typography variant="caption" color="text.secondary" sx={{ marginTop: 1 }}>
-              Par {originalTweet.author.username} • {new Date(originalTweet.date).toLocaleString()}
-            </Typography>
-          </Box>
-        )}
+        {tweet.originalTweet && renderOriginalTweet(tweet.originalTweet)}
 
-        <div style={{ marginTop: "10px", display: "flex", gap: "10px" }}>
-          {/* Bouton Like */}
-          <IconButton onClick={handleLike} color={isLiking ? "error" : "default"}>
-            <FavoriteIcon />
-            <Typography>{likesCount}</Typography>
-          </IconButton>
+        <Box sx={{ mt: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {/* Like Button with Red Background */}
+          <Badge
+            badgeContent={likeCount}
+            sx={{
+              "& .MuiBadge-badge": {
+                backgroundColor: liked ? "red" : "default", // Red background for the badge
+                color: "white", // White text for better contrast
+              },
+            }}
+          >
+            <IconButton
+              onClick={handleLike}
+              sx={{
+                backgroundColor: liked ? "rgba(255, 0, 0, 0.1)" : "transparent",
+                borderRadius: "50%",
+                "&:hover": {
+                  backgroundColor: liked ? "rgba(255, 0, 0, 0.2)" : "rgba(0, 0, 0, 0.04)",
+                },
+              }}
+            >
+              <FavoriteIcon sx={{ color: liked ? "red" : "inherit" }} />
+            </IconButton>
+          </Badge>
 
-          {/* Bouton Retweet */}
-          <IconButton onClick={() => setShowRetweetField(!showRetweetField)} color={isRetweeting ? "success" : "default"}>
-            <RepeatIcon />
-          </IconButton>
+          {/* Retweet Button */}
+          <Badge badgeContent={localRetweetCount} color="primary">
+            <IconButton onClick={handleRetweet} color={retweeted ? "success" : "default"}>
+              <RepeatIcon />
+            </IconButton>
+          </Badge>
 
-          {/* Bouton Commentaire */}
-          <IconButton onClick={() => setShowCommentField(!showCommentField)} color="primary">
+          {/* Comment Button */}
+          <IconButton onClick={() => setShowComments(!showComments)} color="primary">
             <ChatBubbleOutlineIcon />
-            <Typography>{comments.length}</Typography>
           </IconButton>
-        </div>
 
-        {/* Champ de texte pour le retweet */}
-        {showRetweetField && (
-          <div style={{ marginTop: "10px" }}>
-            <TextField
-              fullWidth
-              label="Ajouter un commentaire pour le retweet (optionnel)"
-              variant="outlined"
-              size="small"
-              value={retweetText}
-              onChange={(e) => setRetweetText(e.target.value)}
-              sx={{ marginTop: 1 }}
-            />
-            <Button variant="contained" sx={{ marginTop: 1 }} onClick={handleRetweet}>
-              Envoyer
-            </Button>
-          </div>
-        )}
+          {/* Bookmark Button */}
+          <Badge badgeContent={bookmarkCount} color="secondary">
+            <IconButton onClick={handleBookmark} color={isBookmarked ? "primary" : "default"}>
+              {isBookmarked ? <BookmarkIcon /> : <BookmarkBorderIcon />}
+            </IconButton>
+          </Badge>
+        </Box>
 
-        {/* Champ de texte pour le commentaire */}
-        {showCommentField && (
-          <div style={{ marginTop: "10px" }}>
+        {showComments && (
+          <Box mt={2}>
+            {comments.map((comment, index) => (
+              <Typography
+                key={index}
+                variant="body2"
+                sx={{
+                  backgroundColor: "#f5f5f5",
+                  padding: "8px",
+                  borderRadius: "5px",
+                  marginBottom: "5px",
+                }}
+              >
+                {comment}
+              </Typography>
+            ))}
             <TextField
               fullWidth
               label="Écrire un commentaire..."
               variant="outlined"
               size="small"
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              sx={{ marginTop: 1 }}
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              sx={{ mt: 1 }}
             />
-            <Button variant="contained" sx={{ marginTop: 1 }} onClick={handleAddComment}>
+            <Button variant="contained" sx={{ mt: 1 }} onClick={handleAddComment}>
               Ajouter
             </Button>
-          </div>
+          </Box>
         )}
 
-        {/* Liste des commentaires */}
-        {comments.length > 0 && (
-          <div style={{ marginTop: "10px" }}>
-            {comments.map((comment) => (
-              <div key={comment._id} style={{ backgroundColor: "#f5f5f5", padding: "10px", borderRadius: "5px", marginBottom: "5px" }}>
-                <Typography variant="body2" color="text.primary">
-                  {comment.text}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Par {comment.author.username} • {new Date(comment.date).toLocaleString()}
-                </Typography>
-              </div>
-            ))}
-          </div>
-        )}
+        <RetweetDialog
+          open={openRetweetDialog}
+          onClose={handleCloseRetweetDialog}
+          tweet={tweet}
+          onRetweet={handleRetweetSubmit}
+        />
       </CardContent>
-
-      {/* Gestion des erreurs */}
-      <Snackbar
-        open={!!error}
-        autoHideDuration={6000}
-        onClose={() => setError(null)}
-      >
-        <Alert severity="error" onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      </Snackbar>
     </Card>
   );
 };
 
 export default Tweet;
+ 

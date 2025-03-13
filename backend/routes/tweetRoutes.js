@@ -7,7 +7,12 @@ const commentController = require('../controllers/commentController');
 const { auth } = require('../middleware/authMiddleware');
 
 // Routes d'authentification
-router.post('/createTweet', auth, tweetController.createTweet);
+router.post(
+    '/tweets',
+    auth,
+    tweetController.upload.single('media'), // Add Multer middleware
+    tweetController.createTweet
+  );
 router.get('/tweets', tweetController.getTweets);
 router.post('/like/:id', auth, tweetController.likeTweet);
 router.post('/retweet/:id', auth, tweetController.retweet);
@@ -27,5 +32,8 @@ router.post('/signet/:id', auth, tweetController.bookmarkTweet);
 router.get('/commentedTweetsByFollowings', auth, tweetController.getCommentedTweetsByFollowings);
 router.get('/gettweet/:id', auth, tweetController.getTweetById);
 router.get('/allTweetsByFollowings', auth, tweetController.getAllTweetsByFollowings);
-
+router.get('/user/:userId/tweets', auth, tweetController.getTweetsByUser);
+router.get("/likedTweetsByUser", auth, tweetController.getLikedTweetsByUser);
+router.get("/commentedTweetsByUser", auth, tweetController.getCommentedTweetsByUser);
+router.get("/bookmarkedTweets", auth, tweetController.getBookmarkedTweets);
 module.exports = router;

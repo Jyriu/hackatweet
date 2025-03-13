@@ -1,20 +1,28 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, Link } from "react-router-dom";
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useEffect } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  Link,
+} from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import {
   AppBar,
   Toolbar,
   Typography,
-  Button,
   IconButton,
   Badge,
   Box,
   CssBaseline,
   Tooltip,
+  Avatar,
 } from "@mui/material";
-import NotificationsIcon from '@mui/icons-material/Notifications';
-import HomeIcon from '@mui/icons-material/Home';
-import SettingsIcon from '@mui/icons-material/Settings';
+import NotificationsIcon from "@mui/icons-material/Notifications";
+import SettingsIcon from "@mui/icons-material/Settings";
+import LogoutIcon from "@mui/icons-material/Logout";
+import ChatIcon from "@mui/icons-material/Chat";
 
 // Pages
 import Home from "./pages/Home";
@@ -25,94 +33,159 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Settings from "./pages/Settings";
 import UserProfile from "./pages/UserProfile";
+import Chat from "./pages/Chat";
+import AdvancedSearchBar from "./pages/AdvancedSearchBar";
 
 // Redux actions
-import { connectToSocket, disconnectFromSocket } from './redux/actions/socketActions';
-import { loadUser, logoutUser } from './redux/actions/userActions';
+import {
+  connectToSocket,
+  disconnectFromSocket,
+} from "./redux/actions/socketActions";
+import { loadUser, logoutUser } from "./redux/actions/userActions";
+import { loadUnreadCount } from "./redux/actions/notificationActions";
+
+// URL de base du backend
+const API_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
 
 // Composant pour les routes protégées
 const ProtectedRoute = ({ element }) => {
-  const user = useSelector(state => state.user.currentUser);
-
-  // Si l'utilisateur n'est pas connecté, rediriger vers la page d'authentification
+  const user = useSelector((state) => state.user.currentUser);
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
-
-  // Sinon, rendre le composant demandé
   return element;
 };
 
 // Composant pour les routes d'authentification
 const AuthRoute = ({ element }) => {
-  const user = useSelector(state => state.user.currentUser);
-
-  // Si l'utilisateur est déjà connecté, rediriger vers la page d'accueil
+  const user = useSelector((state) => state.user.currentUser);
   if (user) {
     return <Navigate to="/" replace />;
   }
-
-  // Sinon, rendre le composant demandé
   return element;
 };
 
-// Composant de navigation avec Redux (défini à l'intérieur du Router)
+// Boutons de navigation
 function NavigationButtons() {
-  const user = useSelector(state => state.user.currentUser);
-  const unreadCount = useSelector(state => state.notifications.unreadCount);
+  const user = useSelector((state) => state.user.currentUser);
+  const unreadCount = useSelector((state) => state.notifications.unreadCount);
   const navigate = useNavigate();
 
   if (!user) return null;
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <IconButton color="inherit" onClick={() => navigate('/')}>
-        <HomeIcon />
-      </IconButton>
-      <IconButton color="inherit" onClick={() => navigate('/notifications')}>
-        <Badge badgeContent={unreadCount} color="error">
-          <NotificationsIcon />
-        </Badge>
-      </IconButton>
+    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+      <Tooltip title="Messages">
+        <IconButton
+          color="inherit"
+          onClick={() => navigate("/chat")}
+          sx={{ fontSize: "1.5rem" }}
+        >
+          <ChatIcon fontSize="large" />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Notifications">
+        <IconButton
+          color="inherit"
+          onClick={() => navigate("/notifications")}
+          sx={{ fontSize: "1.5rem" }}
+        >
+          <Badge badgeContent={unreadCount} color="error">
+            <NotificationsIcon fontSize="large" />
+          </Badge>
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Profile">
+        <IconButton
+          color="inherit"
+          onClick={() => navigate("/profile")}
+          sx={{ fontSize: "1.5rem" }}
+        >
+          <Avatar
+            src={
+              user.photo
+                ? `${API_URL}${user.photo}`
+                : "https://via.placeholder.com/150?text=Avatar"
+            }
+            alt={user.username}
+            sx={{ width: 40, height: 40 }}
+          />
+        </IconButton>
+      </Tooltip>
     </Box>
   );
 }
 
-// Bouton de déconnexion avec Redux (défini à l'intérieur du Router)
+// Bouton de déconnexion avec icône
 function LogoutButton() {
   const dispatch = useDispatch();
-  const user = useSelector(state => state.user.currentUser);
+  const user = useSelector((state) => state.user.currentUser);
   const navigate = useNavigate();
 
   const handleLogout = () => {
     dispatch(logoutUser());
-    navigate('/auth');
+    navigate("/auth");
   };
 
   return user ? (
-    <Button color="error" onClick={handleLogout}>
-      Déconnexion
-    </Button>
+    <Tooltip title="Déconnexion">
+      <IconButton
+        onClick={handleLogout}
+        sx={{
+          fontSize: "1.5rem",
+          padding: "8px",
+        }}
+      >
+        <LogoutIcon fontSize="large" />
+      </IconButton>
+    </Tooltip>
   ) : null;
 }
 
-// Composant d'application principale qui utilise les composants de navigation
+// Composant d'application principale avec navigation
 function AppContent() {
-  const user = useSelector(state => state.user.currentUser);
+  const user = useSelector((state) => state.user.currentUser);
 
   return (
     <>
-      {/* Barre de navigation - visible uniquement si l'utilisateur est connecté */}
       {user && (
-        <AppBar position="static">
+        <AppBar
+          position="fixed"
+          sx={{
+            backgroundColor: "#f5f8fa",
+            color: "#545f69",
+            boxShadow: "0px 0px 0px rgba(0, 0, 0, 0.1)",
+            zIndex: 1200,
+          }}
+        >
           <Toolbar>
-            <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            <Typography
+              component={Link}
+              to="/"
+              sx={{
+                fontSize: "2rem",
+                flexGrow: 1,
+                fontWeight: "bold",
+                color: "primary.main",
+                fontFamily: "'Poppins', sans-serif",
+                textDecoration: "none",
+                cursor: "pointer",
+                "&:hover": {
+                  textDecoration: "none",
+                },
+              }}
+            >
               HackaTweet
             </Typography>
             <NavigationButtons />
             <Tooltip title="Paramètres">
-              <IconButton color="inherit" component={Link} to="/settings">
-                <SettingsIcon />
+              <IconButton
+                color="inherit"
+                component={Link}
+                to="/settings"
+                sx={{ fontSize: "1.5rem" }}
+              >
+                <SettingsIcon fontSize="large" />
               </IconButton>
             </Tooltip>
             <LogoutButton />
@@ -120,41 +193,65 @@ function AppContent() {
         </AppBar>
       )}
 
-      <Routes>
-        <Route path="/" element={<ProtectedRoute element={<Home />} />} />
-        <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
-        <Route path="/auth" element={<AuthRoute element={<Auth />} />} />
-        <Route path="/notifications" element={<ProtectedRoute element={<Notifications />} />} />
-        <Route path="/settings" element={<ProtectedRoute element={<Settings />} />} />
-        <Route path="/user/:username" element={<ProtectedRoute element={<UserProfile />} />} />
-
-        {/* Redirection des anciennes routes vers /auth */}
-        <Route path="/login" element={<Navigate to="/auth" replace />} />
-        <Route path="/register" element={<Navigate to="/auth" replace />} />
-
-        {/* Redirection par défaut */}
-        <Route path="*" element={<Navigate to={user ? "/" : "/auth"} replace />} />
-      </Routes>
+      <Box sx={{ paddingTop: user ? "64px" : 0 }}>
+        <Routes>
+          <Route path="/" element={<ProtectedRoute element={<Home />} />} />
+          <Route
+            path="/profile"
+            element={<ProtectedRoute element={<Profile />} />}
+          />
+          <Route path="/auth" element={<AuthRoute element={<Auth />} />} />
+          <Route
+            path="/notifications"
+            element={<ProtectedRoute element={<Notifications />} />}
+          />
+          <Route
+            path="/settings"
+            element={<ProtectedRoute element={<Settings />} />}
+          />
+          <Route
+            path="/chat"
+            element={<ProtectedRoute element={<Chat />} />}
+          />
+          <Route
+            path="/search"
+            element={<ProtectedRoute element={<AdvancedSearchBar />} />}
+          />
+          <Route
+            path="/user/:username"
+            element={<ProtectedRoute element={<UserProfile />} />}
+          />
+          <Route path="/login" element={<Navigate to="/auth" replace />} />
+          <Route path="/register" element={<Navigate to="/auth" replace />} />
+          <Route
+            path="*"
+            element={<Navigate to={user ? "/" : "/auth"} replace />}
+          />
+        </Routes>
+      </Box>
     </>
   );
 }
 
 const App = () => {
   const dispatch = useDispatch();
-  const user = useSelector(state => state.user.currentUser);
-  const isConnected = useSelector(state => state.socket.connected);
+  const user = useSelector((state) => state.user.currentUser);
+  const isConnected = useSelector((state) => state.socket.connected);
 
-  // Charger l'utilisateur au démarrage de l'application
   useEffect(() => {
     dispatch(loadUser());
   }, [dispatch]);
 
-  // Connecter au WebSocket lorsque l'utilisateur est authentifié
   useEffect(() => {
-    if (user && !isConnected) {
-      dispatch(connectToSocket());
+    if (user) {
+      // Charger le nombre de notifications non lues
+      dispatch(loadUnreadCount());
+      
+      // Connecter le socket si nécessaire
+      if (!isConnected) {
+        dispatch(connectToSocket());
+      }
     }
-
     return () => {
       if (isConnected) {
         dispatch(disconnectFromSocket());

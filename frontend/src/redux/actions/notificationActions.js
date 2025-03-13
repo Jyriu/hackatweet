@@ -3,14 +3,16 @@ import {
   setNotificationLoading,
   setNotificationError,
   markAsRead,
-  markAllAsRead
+  markAllAsRead,
+  setUnreadCount
 } from '../Store';
 
 // Import des services
 import {
   fetchNotifications,
   markNotificationAsRead,
-  markAllNotificationsAsRead
+  markAllNotificationsAsRead,
+  getUnreadNotificationsCount
 } from '../../services/notificationService';
 
 // Action asynchrone pour charger les notifications
@@ -20,11 +22,25 @@ export const loadNotifications = () => async (dispatch) => {
     const notifications = await fetchNotifications();
     dispatch(setNotifications(notifications));
     dispatch(setNotificationError(null));
+    
+    // Calculer le nombre de notifications non lues
+    const unreadCount = notifications.filter(notif => !notif.read).length;
+    dispatch(setUnreadCount(unreadCount));
   } catch (error) {
     console.error('Erreur lors du chargement des notifications:', error);
     dispatch(setNotificationError('Impossible de charger les notifications'));
   } finally {
     dispatch(setNotificationLoading(false));
+  }
+};
+
+// Action asynchrone pour récupérer uniquement le nombre de notifications non lues
+export const loadUnreadCount = () => async (dispatch) => {
+  try {
+    const count = await getUnreadNotificationsCount();
+    dispatch(setUnreadCount(count));
+  } catch (error) {
+    console.error('Erreur lors de la récupération du nombre de notifications non lues:', error);
   }
 };
 

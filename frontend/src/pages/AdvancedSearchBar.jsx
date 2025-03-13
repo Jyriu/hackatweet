@@ -17,12 +17,12 @@ import {
   ListItemAvatar,
   ListItemText,
 } from "@mui/material";
-import axios from "axios";
 import {
   ChatBubbleOutline as TweetIcon,
   PersonOutline as UserIcon,
   Tag as HashtagIcon,
 } from "@mui/icons-material";
+import { performSearch } from "../services/api"; // Importez la fonction performSearch
 
 const AdvancedSearchBar = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -32,36 +32,6 @@ const AdvancedSearchBar = () => {
   const [debounceTimeout, setDebounceTimeout] = useState(null);
   const [searchType, setSearchType] = useState("tous"); // Par défaut, recherche de tout
   const [hasSearched, setHasSearched] = useState(false); // Nouvel état pour suivre si une recherche a été effectuée
-
-  const url = import.meta.env.VITE_BACKEND_URL;
-
-  // Fonction pour effectuer la recherche via l'API
-  const performSearch = async (query, type) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.post(
-        `${url}/api/search/advancedSearch`,
-        {
-          query,
-          type: type === "tous" ? undefined : type, // "tous" envoie undefined
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      console.log("Réponse API:", response.data); // Pour vérifier la réponse
-      setSearchResults(response.data);
-      setHasSearched(true); // Marquer qu'une recherche a été effectuée
-    } catch (err) {
-      setError(err.response?.data?.message || "Erreur lors de la recherche");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Gestion du onChange avec debounce de 1sec
   const handleSearchChange = (e) => {
@@ -76,7 +46,18 @@ const AdvancedSearchBar = () => {
     // Lance le timer de 1 seconde avant de faire la recherche
     const timer = setTimeout(() => {
       if (value.trim() !== "") {
-        performSearch(value, searchType);
+        setLoading(true); // Active le chargement
+        performSearch(value, searchType)
+          .then((data) => {
+            setSearchResults(data);
+            setHasSearched(true); // Marquer qu'une recherche a été effectuée
+          })
+          .catch((err) => {
+            setError(err.message || "Erreur lors de la recherche");
+          })
+          .finally(() => {
+            setLoading(false); // Désactive le chargement
+          });
       } else {
         setSearchResults(null);
         setHasSearched(false); // Réinitialiser si la recherche est vide
@@ -94,7 +75,18 @@ const AdvancedSearchBar = () => {
   // useEffect pour relancer la recherche lorsque searchType change
   useEffect(() => {
     if (searchTerm.trim() !== "") {
-      performSearch(searchTerm, searchType);
+      setLoading(true); // Active le chargement
+      performSearch(searchTerm, searchType)
+        .then((data) => {
+          setSearchResults(data);
+          setHasSearched(true); // Marquer qu'une recherche a été effectuée
+        })
+        .catch((err) => {
+          setError(err.message || "Erreur lors de la recherche");
+        })
+        .finally(() => {
+          setLoading(false); // Désactive le chargement
+        });
     }
   }, [searchType]); // Déclenché lorsque searchType change
 

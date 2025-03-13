@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Container, Typography, Grid, CircularProgress, Box } from "@mui/material";
-import Tweet from "../components/Tweet";
-import NewTweet from "../components/NewTweet";
+import { Container, Typography, Box } from "@mui/material";
+import TweetCreation from "../components/TweetCreation";
+import TweetList from "../components/TweetList";
 import { fetchTweetsFromApi, saveEmotionToApi } from "../services/api";
-import useEmotionDetection from "../hooks/useEmotionDetection"; // Import the hook
+import useEmotionDetection from "../hooks/useEmotionDetection";
+import { useSelector } from "react-redux";
+
 
 const Home = () => {
   const [tweets, setTweets] = useState([]);
@@ -11,10 +13,9 @@ const Home = () => {
   const [visibleTweetId, setVisibleTweetId] = useState(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const tweetsContainerRef = useRef(null);
   const isFetching = useRef(false);
   const lastTweetRef = useRef(null);
-  const user = JSON.parse(localStorage.getItem("user")); // Parse the user object
+  const user = useSelector((state) => state.user.currentUser);
   const userId = user?.id;
 
   // Use the emotion detection hook
@@ -74,121 +75,68 @@ const Home = () => {
     }
   };
 
-  // Handle scroll event with debouncing
+  // Handle scroll event
   const handleScroll = useCallback(() => {
-    if (!tweetsContainerRef.current) return;
+    const lastTweetId = tweets[tweets.length - 1]?._id;
 
-    const container = tweetsContainerRef.current;
-    const { scrollTop, scrollHeight, clientHeight } = container;
-
-    // Check if we're at the end of the list (with a margin)
-    if (
-      scrollTop + clientHeight >= scrollHeight - 100 &&
-      hasMore &&
-      !loading &&
-      !isFetching.current
-    ) {
-      const lastTweetId = tweets[tweets.length - 1]?._id;
-
-      if (lastTweetId && lastTweetId !== lastTweetRef.current) {
-        lastTweetRef.current = lastTweetId;
-        setPage((prevPage) => prevPage + 1);
-      }
+    if (lastTweetId && lastTweetId !== lastTweetRef.current) {
+      lastTweetRef.current = lastTweetId;
+      setPage((prevPage) => prevPage + 1);
     }
-
-    // Track the first fully visible tweet
-    const tweetsElements = container.querySelectorAll(".tweet-item");
-    for (let i = 0; i < tweetsElements.length; i++) {
-      const tweet = tweetsElements[i];
-      const rect = tweet.getBoundingClientRect();
-
-      if (rect.top >= 0 && rect.bottom <= container.clientHeight) {
-        const tweetId = tweet.getAttribute("data-tweet-id");
-        if (tweetId !== visibleTweetId) {
-          setVisibleTweetId(tweetId);
-          if (emotionData) {
-            saveEmotion(tweetId, emotionData.dominant_emotion);
-          }
-        }
-        break;
-      }
-    }
-  }, [tweets, visibleTweetId, emotionData, hasMore, loading, userId]);
-
-  // Add scroll event listener with debouncing
-  useEffect(() => {
-    const container = tweetsContainerRef.current;
-    if (!container) return;
-
-    const debouncedHandleScroll = () => {
-      if (!loading && !isFetching.current) {
-        handleScroll();
-      }
-    };
-
-    container.addEventListener("scroll", debouncedHandleScroll);
-    return () => container.removeEventListener("scroll", debouncedHandleScroll);
-  }, [handleScroll, loading]);
+  }, [tweets]);
 
   return (
-    <Container maxWidth="lg" sx={{ marginTop: 4 }}>
-      <Typography variant="h4" color="primary" gutterBottom>
-        Fil d'actualité
-      </Typography>
-
-      <NewTweet onAddTweet={addNewTweet} />
-
-      {loading && tweets.length === 0 ? (
-        <Grid container justifyContent="center" sx={{ marginTop: 3 }}>
-          <CircularProgress />
-        </Grid>
-      ) : (
+    <Box
+      sx={{
+        height: "100vh",
+        backgroundColor: "#f5f8fa", // Background color for the entire page
+      }}
+    >
+      {/* Bigger Container */}
+      <Container
+        maxWidth="md"
+        sx={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          padding: 0,
+          backgroundColor: "#f5f8fa", // Same background color
+        }}
+      >
+        {/* Header */}
         <Box
-          ref={tweetsContainerRef}
           sx={{
-            height: "60vh",
-            overflowY: "auto",
-            border: "1px solid #ddd",
-            borderRadius: "4px",
-            padding: "10px",
+            backgroundColor: "#f5f8fa",
+            borderBottom: "1px solid #e0e0e0",
+            padding: 2,
+            zIndex: 1000,
           }}
         >
-          <Grid container spacing={2}>
-            {tweets.map((tweet) => (
-              <Grid item xs={12} key={tweet._id} className="tweet-item" data-tweet-id={tweet._id}>
-                <Tweet tweet={tweet} />
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-      )}
-
-      <Grid container spacing={4} sx={{ marginTop: 4 }}>
-        <Grid item xs={12}>
-          <Typography variant="h5" gutterBottom>
-            Résultats d'analyse des émotions
+          <Typography variant="h5" fontWeight="bold" color="#545f69">
+            Fil d'actualité
           </Typography>
-          <div
-            style={{
-              backgroundColor: "#f2f2f2",
-              padding: "10px",
-              overflowY: "auto",
-              height: "300px",
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {emotionData ? (
-              <pre>{JSON.stringify(emotionData, null, 2)}</pre>
-            ) : (
-              <Typography variant="body1">En attente des résultats d'analyse...</Typography>
-            )}
-          </div>
-        </Grid>
-      </Grid>
+        </Box>
 
-      <video ref={videoRef} autoPlay playsInline style={{ display: "none" }} />
-      <canvas ref={canvasRef} style={{ display: "none" }} />
-    </Container>
+        {/* Tweet Creation Section */}
+        <TweetCreation onAddTweet={addNewTweet} />
+
+        {/* Tweet List Section */}
+        <TweetList
+          tweets={tweets}
+          loading={loading}
+          hasMore={hasMore}
+          user = {user}
+          onScroll={handleScroll}
+          onSaveEmotion={saveEmotion}
+          visibleTweetId={visibleTweetId}
+          emotionData={emotionData}
+        />
+
+        {/* Hidden Video and Canvas Elements */}
+        <video ref={videoRef} autoPlay playsInline style={{ display: "none" }} />
+        <canvas ref={canvasRef} style={{ display: "none" }} />
+      </Container>
+    </Box>
   );
 };
 

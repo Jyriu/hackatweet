@@ -32,7 +32,7 @@ export const fetchConversationMessages = async (conversationId) => {
   }
 };
 
-// Créer une nouvelle conversation
+// Créer une nouvelle conversation ou récupérer une existante
 export const createConversation = async (recipientId) => {
   try {
     const response = await axios.post(
@@ -44,9 +44,10 @@ export const createConversation = async (recipientId) => {
         },
       }
     );
+    
     return response.data;
   } catch (error) {
-    console.error('Erreur lors de la création de la conversation:', error);
+    console.error('Erreur lors de la création/récupération de la conversation:', error);
     throw error;
   }
 };
@@ -55,8 +56,11 @@ export const createConversation = async (recipientId) => {
 export const sendMessageAPI = async (conversationId, content) => {
   try {
     const response = await axios.post(
-      `${API_URL}/api/conversations/${conversationId}/messages`,
-      { content },
+      `${API_URL}/api/conversations/message`,
+      { 
+        conversationId,
+        content 
+      },
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -70,11 +74,11 @@ export const sendMessageAPI = async (conversationId, content) => {
   }
 };
 
-// Marquer un message comme lu via API REST (alternative au WebSocket)
-export const markMessageAsReadAPI = async (messageId) => {
+// Marquer tous les messages d'une conversation comme lus via API REST
+export const markConversationAsReadAPI = async (conversationId) => {
   try {
     const response = await axios.put(
-      `${API_URL}/api/messages/${messageId}/read`,
+      `${API_URL}/api/conversations/${conversationId}/read`,
       {},
       {
         headers: {
@@ -84,7 +88,25 @@ export const markMessageAsReadAPI = async (messageId) => {
     );
     return response.data;
   } catch (error) {
-    console.error(`Erreur lors du marquage du message ${messageId} comme lu:`, error);
+    console.error(`Erreur lors du marquage des messages de la conversation ${conversationId} comme lus:`, error);
+    throw error;
+  }
+};
+
+// Supprimer une conversation
+export const deleteConversation = async (conversationId) => {
+  try {
+    const response = await axios.delete(
+      `${API_URL}/api/conversations/${conversationId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error(`Erreur lors de la suppression de la conversation ${conversationId}:`, error);
     throw error;
   }
 }; 
