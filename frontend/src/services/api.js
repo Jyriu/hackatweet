@@ -122,3 +122,17 @@ export const bookmarkTweet = async (tweetId) => {
   }
 };
 
+export const addComment = async (tweetId, text) => {
+  try {
+    const response = await axios.post(`${API_URL}/api/tweet/${tweetId}/comment`, { text }, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error adding comment:", error);
+    throw error;
+  }
+};
+
