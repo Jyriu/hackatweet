@@ -9,6 +9,9 @@ const Replies = mongoose.model('Replies');
 exports.saveEmotion = async (req, res) => {
     try {
       const { tweet_id, user_id, emotion } = req.body;
+      if(!emotion){
+        return res.status(200).json({ message: 'AI not activated' });
+      }
 
       const existingEmotion = await Emotion.findOne({ tweet_id, user_id });
 

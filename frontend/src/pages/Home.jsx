@@ -6,6 +6,7 @@ import { fetchTweetsFromApi, fetchFollowingTweets, saveEmotionToApi } from "../s
 import useEmotionDetection from "../hooks/useEmotionDetection";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import TrendingHashtags from "../components/TrendingHashtags"; // Import the TrendingHashtags component
 
 const Home = () => {
   const [tweets, setTweets] = useState([]);
@@ -19,16 +20,12 @@ const Home = () => {
   const isFetching = useRef(false);
   const lastTweetRef = useRef(null);
   const user = useSelector((state) => state.user.currentUser);
-  //const user = JSON.parse(localStorage.getItem("user")); // Parse the user object
   const userId = user?._id ?? user?.id;
 
   const navigate = useNavigate();
 
-
-  // Use the emotion detection hook only if `user.cameraOn` is true
   const { emotionData, videoRef, canvasRef } = useEmotionDetection(user?.cameraOn);
 
-  // Fetch tweets from the backend
   const fetchTweets = useCallback(
     async (pageNumber) => {
       if (isFetching.current || !hasMore) return;
@@ -60,7 +57,6 @@ const Home = () => {
     [hasMore, userId, navigate]
   );
 
-  // Fetch following tweets from the backend
   const fetchFollowingTweetsHandler = useCallback(
     async (pageNumber) => {
       if (isFetching.current || !hasMoreFollowing) return;
@@ -76,7 +72,6 @@ const Home = () => {
             );
             return [...prev, ...newTweets];
           });
-          // Calculate hasMoreFollowing using currentPage and totalPages if available
           if (data.currentPage !== undefined && data.totalPages !== undefined) {
             setHasMoreFollowing(data.currentPage < data.totalPages);
           } else {
@@ -98,13 +93,11 @@ const Home = () => {
     [hasMoreFollowing, userId, navigate]
   );
 
-  // Load initial tweets
   useEffect(() => {
     if (!showFollowingTweets) fetchTweets(1);
     else fetchFollowingTweetsHandler(1);
   }, [fetchTweets, fetchFollowingTweetsHandler, showFollowingTweets]);
 
-  // Load more tweets when the page changes
   useEffect(() => {
     if (page > 1) {
       if (showFollowingTweets) {
@@ -115,12 +108,10 @@ const Home = () => {
     }
   }, [page, fetchTweets, fetchFollowingTweetsHandler, showFollowingTweets]);
 
-  // Add a new tweet
   const addNewTweet = (newTweet) => {
     setTweets((prevTweets) => [newTweet, ...prevTweets]);
   };
 
-  // Save emotion for a tweet
   const saveEmotion = async (tweetId, emotion) => {
     try {
       await saveEmotionToApi(userId, tweetId, emotion);
@@ -129,7 +120,6 @@ const Home = () => {
     }
   };
 
-  // Handle scroll event
   const handleScroll = useCallback(() => {
     const lastId = showFollowingTweets
       ? followingTweets[followingTweets.length - 1]?._id
@@ -140,7 +130,6 @@ const Home = () => {
     }
   }, [tweets, followingTweets, showFollowingTweets]);
 
-  // Handle button click to show following tweets
   const handleShowFollowingTweets = () => {
     setShowFollowingTweets(true);
     setPage(1);
@@ -150,7 +139,6 @@ const Home = () => {
     fetchFollowingTweetsHandler(1);
   };
 
-  // Handle button click to show all tweets
   const handleShowAllTweets = () => {
     setShowFollowingTweets(false);
     setPage(1);
@@ -165,8 +153,15 @@ const Home = () => {
       sx={{
         height: "100vh",
         backgroundColor: "#f5f8fa",
+        display: "flex",
       }}
     >
+      {/* Trending Hashtags Section */}
+      <div style={{ width: "300px", padding: "16px", backgroundColor: "#ffffff", borderRight: "1px solid #e0e0e0" }}>
+        <TrendingHashtags />
+      </div>
+
+      {/* Main Content Section */}
       <Container
         maxWidth="md"
         sx={{
@@ -175,6 +170,7 @@ const Home = () => {
           flexDirection: "column",
           padding: 0,
           backgroundColor: "#f5f8fa",
+          flex: 1,
         }}
       >
         {/* Tweet Creation Section */}
