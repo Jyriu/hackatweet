@@ -259,48 +259,47 @@ function AppContent() {
   );
 }
 
-const App = () => {
+function App() {
   const dispatch = useDispatch();
-  const user = useSelector((state) => state.user.currentUser);
-  const token = useSelector((state) => state.user.token);
-  const isConnected = useSelector((state) => state.socket.connected);
+  const user = useSelector(state => state.user.currentUser);
+  const socketConnected = useSelector(state => state.socket.connected);
+  const token = useSelector(state => state.user.token);
 
+  // Connecter l'utilisateur au démarrage de l'application
   useEffect(() => {
-    if (token && !user) {
+    if (token) {
+      console.log('🔄 Chargement des informations utilisateur avec token:', token.substring(0, 15) + '...');
       dispatch(loadUser());
+    } else {
+      console.log('⚠️ Aucun token disponible, impossible de charger l\'utilisateur');
     }
-  }, [dispatch, token, user]);
+  }, [dispatch, token]);
 
+  // Connecter le socket quand l'utilisateur est authentifié
+  useEffect(() => {
+    if (user && !socketConnected) {
+      console.log('🔌 Connexion au WebSocket pour l\'utilisateur:', user._id);
+      dispatch(connectToSocket());
+    } else if (!user && socketConnected) {
+      console.log('🔌 Déconnexion du WebSocket (utilisateur déconnecté)');
+      dispatch(disconnectFromSocket());
+    }
+  }, [user, socketConnected, dispatch]);
+
+  // Charger le nombre de notifications non lues quand l'utilisateur est connecté
   useEffect(() => {
     if (user) {
+      console.log('🔔 Chargement des notifications pour l\'utilisateur:', user._id);
       dispatch(loadUnreadCount());
-      if (!isConnected) {
-        dispatch(connectToSocket());
-      }
     }
-    return () => {
-      if (isConnected) {
-        dispatch(disconnectFromSocket());
-      }
-    };
-  }, [user, isConnected, dispatch]);
+  }, [user, dispatch]);
 
   return (
-    <>
+    <Router>
       <CssBaseline />
-      <Box
-        sx={{
-          minHeight: "100vh",
-          // background: "linear-gradient(135deg, #FF6B6B, #4ECDC4)",
-          transition: "background 0.5s ease",
-        }}
-      >
-        <Router>
-          <AppContent />
-        </Router>
-      </Box>
-    </>
+      <AppContent />
+    </Router>
   );
-};
+}
 
 export default App;

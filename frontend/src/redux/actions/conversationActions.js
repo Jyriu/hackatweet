@@ -6,9 +6,12 @@ import {
   setMessageError
 } from '../Store';
 
+import { loadConversationMessages } from './messageActions';
+
 import {
   fetchConversations,
-  createConversation as createConversationAPI
+  createConversation as createConversationAPI,
+  fetchConversationMessages
 } from '../../services/messageService';
 
 // Action asynchrone pour charger toutes les conversations
@@ -17,7 +20,7 @@ export const loadConversations = () => async (dispatch) => {
     console.log('⏳ Chargement des conversations...');
     dispatch(setMessageLoading(true));
     const conversations = await fetchConversations();
-    console.log('✅ Conversations reçues:', conversations);
+    console.log('✅ Conversations reçues:', conversations ? conversations.length : 0);
     
     if (Array.isArray(conversations)) {
       // Le Store attend un tableau, donc on envoie directement le tableau
@@ -38,10 +41,26 @@ export const loadConversations = () => async (dispatch) => {
 };
 
 // Action pour définir la conversation active
-export const setActiveConversationAction = (conversationId) => (dispatch) => {
+export const setActiveConversationAction = (conversationId) => (dispatch, getState) => {
   console.log('🔄 Définition de la conversation active:', conversationId);
+  
+  // Si la conversation était déjà active, ne rien faire pour éviter des rechargements inutiles
+  const currentActiveConversation = getState().messages.activeConversation;
+  if (currentActiveConversation === conversationId) {
+    console.log('ℹ️ Cette conversation est déjà active, aucune action nécessaire');
+    return;
+  }
+  
+  // Définir la conversation active
   dispatch(setActiveConversation(conversationId));
+  
+  // Réinitialiser le compteur de messages non lus
   dispatch(resetUnreadCount(conversationId));
+  
+  // Charger les messages de la conversation
+  if (conversationId) {
+    dispatch(loadConversationMessages(conversationId));
+  }
 };
 
 // Action pour créer une nouvelle conversation
@@ -53,12 +72,16 @@ export const createConversationAction = (recipientId) => async (dispatch) => {
     console.log('✅ Conversation créée:', conversation);
     
     // Ajouter la nouvelle conversation au store
-    dispatch(setConversations([conversation]));
+    if (conversation) {
+      dispatch(setConversations([conversation]));
+      
+      // Définir la nouvelle conversation comme active
+      dispatch(setActiveConversationAction(conversation._id));
+    } else {
+      console.error('❌ Conversation créée invalide:', conversation);
+      dispatch(setMessageError('Erreur lors de la création de la conversation'));
+    }
     
-    // Définir la nouvelle conversation comme active
-    dispatch(setActiveConversation(conversation._id));
-    
-    dispatch(setMessageError(null));
     return conversation;
   } catch (error) {
     console.error('❌ Erreur lors de la création de la conversation:', error);

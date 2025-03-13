@@ -55,6 +55,23 @@ export const createConversation = async (recipientId) => {
 // Envoyer un message via API REST (alternative au WebSocket)
 export const sendMessageAPI = async (conversationId, content) => {
   try {
+    console.log('🚀 Envoi du message via API:', { conversationId, content: content.substring(0, 20) + (content.length > 20 ? '...' : '') });
+    
+    if (!conversationId) {
+      throw new Error('ID de conversation manquant');
+    }
+    
+    if (!content || content.trim() === '') {
+      throw new Error('Contenu du message vide');
+    }
+    
+    // Vérifier que le token est disponible
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Non authentifié - token manquant');
+    }
+    
+    // URL correcte correspondant à la route du backend
     const response = await axios.post(
       `${API_URL}/api/conversations/message`,
       { 
@@ -63,13 +80,16 @@ export const sendMessageAPI = async (conversationId, content) => {
       },
       {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
         },
       }
     );
+    
+    console.log('✅ Message envoyé avec succès via API, réponse:', response.data);
     return response.data;
   } catch (error) {
-    console.error(`Erreur lors de l'envoi du message dans la conversation ${conversationId}:`, error);
+    console.error(`❌ Erreur lors de l'envoi du message dans la conversation ${conversationId}:`, error);
+    console.error('Détails de l\'erreur:', error.response?.data || error.message);
     throw error;
   }
 };
