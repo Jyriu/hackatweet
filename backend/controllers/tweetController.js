@@ -840,3 +840,48 @@ exports.getTweetComments = async (req, res) => {
     });
   }
 };
+
+// get all hashtags shared on the last week sort by likes
+// get all hashtags shared on the last week, sorted by likes
+exports.getRecentHashtagsSortedByLikes = async (req, res) => {
+  try {
+      const { startDate, endDate, limit = 100 } = req.query; // 'limit' récupéré depuis la requête, valeur par défaut = 10
+      const matchConditions = {};
+
+      if (startDate) {
+          matchConditions.date = { $gte: new Date(startDate) };
+      }
+      if (endDate) {
+          matchConditions.date = Object.assign(matchConditions.date || {}, { $lte: new Date(endDate) });
+      }
+
+      const pipeline = [
+          { $match: matchConditions }, // Filtrer selon la date
+          {
+              $project: {
+                  hashtags: 1,
+                  likesCount: { $size: { $ifNull: ["$userLikes", []] } } // Calculer le nombre de likes pour chaque tweet
+              }
+          },
+          { $unwind: "$hashtags" }, // Démanteler les hashtags pour pouvoir les grouper
+          {
+              $group: {
+                  _id: "$hashtags", // Grouper par hashtag
+                  totalLikes: { $sum: "$likesCount" }, // Somme des likes pour chaque hashtag
+                  count: { $sum: 1 } // Nombre d'occurrences de ce hashtag
+              }
+          },
+          { $sort: { totalLikes: -1 } }, // Trier par nombre de likes décroissant
+          { $limit: parseInt(limit, req.query.limit) } // Limiter le nombre de résultats à 'limit'
+      ];
+
+      const hashtags = await Tweet.aggregate(pipeline);
+      res.json(hashtags);
+  } catch (error) {
+      console.error('Error fetching recent hashtags:', error);
+      res.status(500).json({
+          message: 'Error fetching recent hashtags',
+          error: error.message,
+      });
+  }
+};

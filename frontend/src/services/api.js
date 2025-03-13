@@ -197,3 +197,20 @@ export const getTweetComments = async (tweetId, page = 1, limit = 5) => {
       throw error;
   }
 };
+
+
+// Récupère les hashtags tendances (triés par nombre de likes)
+export const fetchTrendingHashtags = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/api/tweet/tendances`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+      }
+    });
+    return response.data; // Retourne la liste des hashtags tendances
+  } catch (error) {
+    console.error("Erreur lors de la récupération des tendances :", error);
+    throw error;
+  }
+};
+

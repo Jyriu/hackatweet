@@ -1,32 +1,31 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Container, Typography, Box } from "@mui/material";
+import { Container, Typography, Box, Grid } from "@mui/material";
 import TweetCreation from "../components/TweetCreation";
 import TweetList from "../components/TweetList";
+import TrendingHashtags from "../components/trendingHashtags";
 import { fetchTweetsFromApi, fetchFollowingTweets, saveEmotionToApi } from "../services/api";
 import useEmotionDetection from "../hooks/useEmotionDetection";
 import { useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom"; // NEW import
+import { useNavigate } from "react-router-dom";
 
 const Home = () => {
   const [tweets, setTweets] = useState([]);
-  const [followingTweets, setFollowingTweets] = useState([]); // NEW state for following tweets
+  const [followingTweets, setFollowingTweets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [visibleTweetId, setVisibleTweetId] = useState(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [hasMoreFollowing, setHasMoreFollowing] = useState(true); // NEW pagination flag for following tweets
+  const [hasMoreFollowing, setHasMoreFollowing] = useState(true);
   const [showFollowingTweets, setShowFollowingTweets] = useState(false);
   const isFetching = useRef(false);
   const lastTweetRef = useRef(null);
-  //const user = useSelector((state) => state.user.currentUser);
-  const user = JSON.parse(localStorage.getItem("user")); // Parse the user object
+  const user = JSON.parse(localStorage.getItem("user"));
   const userId = user?.id;
-  const navigate = useNavigate(); // NEW hook
+  const navigate = useNavigate();
 
-  // Use the emotion detection hook
   const { emotionData, videoRef, canvasRef } = useEmotionDetection();
 
-  // Fetch tweets from the backend
+  // Fonction pour charger les tweets
   const fetchTweets = useCallback(
     async (pageNumber) => {
       if (isFetching.current || !hasMore) return;
@@ -48,8 +47,7 @@ const Home = () => {
         }
       } catch (error) {
         console.error("Error fetching tweets:", error);
-        if(error.response?.data?.message === "Authentification requise"){
-          // Rediriger vers la page de connexion
+        if (error.response?.data?.message === "Authentification requise") {
           navigate("/login");
         }
       } finally {
@@ -60,7 +58,7 @@ const Home = () => {
     [hasMore, userId, navigate]
   );
 
-  // Fetch following tweets from the backend
+  // Fonction pour charger les tweets des utilisateurs suivis
   const fetchFollowingTweetsHandler = useCallback(
     async (pageNumber) => {
       if (isFetching.current || !hasMoreFollowing) return;
@@ -69,7 +67,7 @@ const Home = () => {
       try {
         setLoading(true);
         const data = await fetchFollowingTweets(pageNumber, userId);
-        if (data && data.tweets.length > 0) {
+        if (data && data?.tweets?.length > 0) {
           setFollowingTweets((prev) => {
             const newTweets = data.tweets.filter(
               (t) => !prev.some((ex) => ex._id === t._id)
@@ -82,7 +80,7 @@ const Home = () => {
         }
       } catch (error) {
         console.error("Error fetching following tweets:", error);
-        if(error.response?.data?.message === "Authentification requise"){
+        if (error.response?.data?.message === "Authentification requise") {
           navigate("/login");
         }
       } finally {
@@ -93,13 +91,13 @@ const Home = () => {
     [hasMoreFollowing, userId, navigate]
   );
 
-  // Load initial tweets
+  // Charger les tweets initiaux
   useEffect(() => {
     if (!showFollowingTweets) fetchTweets(1);
     else fetchFollowingTweetsHandler(1);
   }, [fetchTweets, fetchFollowingTweetsHandler, showFollowingTweets]);
 
-  // Load more tweets when the page changes
+  // Charger plus de tweets lorsque la page change
   useEffect(() => {
     if (page > 1) {
       if (showFollowingTweets) {
@@ -110,12 +108,12 @@ const Home = () => {
     }
   }, [page, fetchTweets, fetchFollowingTweetsHandler, showFollowingTweets]);
 
-  // Add a new tweet
+  // Ajouter un nouveau tweet
   const addNewTweet = (newTweet) => {
     setTweets((prevTweets) => [newTweet, ...prevTweets]);
   };
 
-  // Save emotion for a tweet
+  // Sauvegarder une émotion pour un tweet
   const saveEmotion = async (tweetId, emotion) => {
     try {
       await saveEmotionToApi(userId, tweetId, emotion);
@@ -124,7 +122,7 @@ const Home = () => {
     }
   };
 
-  // Handle scroll event
+  // Gérer le défilement pour charger plus de tweets
   const handleScroll = useCallback(() => {
     const lastId = showFollowingTweets
       ? followingTweets[followingTweets.length - 1]?._id
@@ -135,23 +133,23 @@ const Home = () => {
     }
   }, [tweets, followingTweets, showFollowingTweets]);
 
-  // Handle button click to show following tweets
+  // Afficher les tweets des utilisateurs suivis
   const handleShowFollowingTweets = () => {
     setShowFollowingTweets(true);
     setPage(1);
     setFollowingTweets([]);
     setHasMoreFollowing(true);
-    lastTweetRef.current = null;  // NEW: reset pagination pointer
+    lastTweetRef.current = null;
     fetchFollowingTweetsHandler(1);
   };
 
-  // Handle button click to show all tweets
+  // Afficher tous les tweets
   const handleShowAllTweets = () => {
     setShowFollowingTweets(false);
     setPage(1);
     setTweets([]);
     setHasMore(true);
-    lastTweetRef.current = null;  // NEW: reset pagination pointer
+    lastTweetRef.current = null;
     fetchTweets(1);
   };
 
@@ -159,78 +157,87 @@ const Home = () => {
     <Box
       sx={{
         height: "100vh",
-        backgroundColor: "#f5f8fa", // Background color for the entire page
+        backgroundColor: "#f5f8fa",
       }}
     >
-      {/* Bigger Container */}
       <Container
-        maxWidth="md"
+        maxWidth="lg"
         sx={{
           height: "100%",
           display: "flex",
           flexDirection: "column",
           padding: 0,
-          backgroundColor: "#f5f8fa", // Same background color
+          backgroundColor: "#f5f8fa",
         }}
       >
-        {/* Tweet Creation Section */}
-        <TweetCreation onAddTweet={addNewTweet} />
+        {/* Grille pour afficher les hashtags et les tweets côte à côte */}
+        <Grid container spacing={2}>
+          {/* Colonne des hashtags */}
+          <Grid item xs={3}>
+            <TrendingHashtags />
+          </Grid>
 
-        {/* Header */}
-        <Box
-          sx={{
-            backgroundColor: "#f5f8fa",
-            borderBottom: "1px solid #e0e0e0",
-            padding: 2,
-            zIndex: 1000,
-            display: "flex",
-            justifyContent: "space-between",
-          }}
-        >
-          <Typography variant="h5" fontWeight="bold" color="#545f69">
-            <button
-              style={{ textDecoration: "none", color: "#545f69", background: "none", border: "none", cursor: "pointer" }}
-              onClick={handleShowAllTweets}
+          {/* Colonne des tweets */}
+          <Grid item xs={9}>
+            <TweetCreation onAddTweet={addNewTweet} />
+
+            {/* En-tête */}
+            <Box
+              sx={{
+                backgroundColor: "#f5f8fa",
+                borderBottom: "1px solid #e0e0e0",
+                padding: 2,
+                zIndex: 1000,
+                display: "flex",
+                justifyContent: "space-between",
+              }}
             >
-              Fil d'actualité
-            </button>
-          </Typography>
-          <Typography variant="h5" fontWeight="bold" color="#545f69">
-            <button
-              style={{ textDecoration: "none", color: "#545f69", background: "none", border: "none", cursor: "pointer" }}
-              onClick={handleShowFollowingTweets}
-            >
-              Actualité recommandée
-            </button>
-          </Typography>
-        </Box>
+              <Typography variant="h5" fontWeight="bold" color="#545f69">
+                <button
+                  style={{ textDecoration: "none", color: "#545f69", background: "none", border: "none", cursor: "pointer" }}
+                  onClick={handleShowAllTweets}
+                >
+                  Fil d'actualité
+                </button>
+              </Typography>
+              <Typography variant="h5" fontWeight="bold" color="#545f69">
+                <button
+                  style={{ textDecoration: "none", color: "#545f69", background: "none", border: "none", cursor: "pointer" }}
+                  onClick={handleShowFollowingTweets}
+                >
+                  Actualité recommandée
+                </button>
+              </Typography>
+            </Box>
 
-        {/* Tweet List Section */}
-        {showFollowingTweets ? (
-          <TweetList
-            tweets={followingTweets}
-            loading={loading}
-            hasMore={hasMoreFollowing}
-            user={user}
-            onScroll={handleScroll}
-            onSaveEmotion={saveEmotion}
-            visibleTweetId={visibleTweetId}
-            emotionData={emotionData}
-          />
-        ) : (
-          <TweetList
-            tweets={tweets}
-            loading={loading}
-            hasMore={hasMore}
-            user={user}
-            onScroll={handleScroll}
-            onSaveEmotion={saveEmotion}
-            visibleTweetId={visibleTweetId}
-            emotionData={emotionData}
-          />
-        )}
+            {/* Liste des tweets */}
+            {showFollowingTweets ? (
+              <TweetList
+                tweets={followingTweets}
+                loading={loading}
+                hasMore={hasMoreFollowing}
+                user={user}
+                onScroll={handleScroll}
+                onSaveEmotion={saveEmotion}
+                visibleTweetId={visibleTweetId}
+                emotionData={emotionData}
+              />
+            ) : (
+              <TweetList
+                tweets={tweets}
+                loading={loading}
+                hasMore={hasMore}
+                user={user}
+                onScroll={handleScroll}
+                onSaveEmotion={saveEmotion}
+                visibleTweetId={visibleTweetId}
+                emotionData={emotionData}
+              />
+            )}
+          </Grid>
+        </Grid>
 
-        {/* Hidden Video and Canvas Elements */}
+        {/* Éléments vidéo et canvas cachés */}
         <video ref={videoRef} autoPlay playsInline style={{ display: "none" }} />
         <canvas ref={canvasRef} style={{ display: "none" }} />
       </Container>
