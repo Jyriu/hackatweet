@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 
-const useEmotionDetection = () => {
+const useEmotionDetection = (cameraOn) => {
     const [emotionData, setEmotionData] = useState(null);
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
 
     useEffect(() => {
+        if (!cameraOn) return; // Skip initialization if camera is off
+
         let socket;
         let intervalId;
 
@@ -64,7 +66,7 @@ const useEmotionDetection = () => {
                 socket.close();
             }
         };
-    }, []);
+    }, [cameraOn]); // Re-run effect if `cameraOn` changes
 
     return { emotionData, videoRef, canvasRef };
 };

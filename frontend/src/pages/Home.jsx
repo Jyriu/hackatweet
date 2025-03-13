@@ -5,26 +5,26 @@ import TweetList from "../components/TweetList";
 import { fetchTweetsFromApi, fetchFollowingTweets, saveEmotionToApi } from "../services/api";
 import useEmotionDetection from "../hooks/useEmotionDetection";
 import { useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom"; // NEW import
+import { useNavigate } from "react-router-dom";
 
 const Home = () => {
   const [tweets, setTweets] = useState([]);
-  const [followingTweets, setFollowingTweets] = useState([]); // NEW state for following tweets
+  const [followingTweets, setFollowingTweets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [visibleTweetId, setVisibleTweetId] = useState(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [hasMoreFollowing, setHasMoreFollowing] = useState(true); // NEW pagination flag for following tweets
+  const [hasMoreFollowing, setHasMoreFollowing] = useState(true);
   const [showFollowingTweets, setShowFollowingTweets] = useState(false);
   const isFetching = useRef(false);
   const lastTweetRef = useRef(null);
-  //const user = useSelector((state) => state.user.currentUser);
-  const user = JSON.parse(localStorage.getItem("user")); // Parse the user object
+  const user = useSelector((state) => state.user.currentUser);
+  //const user = JSON.parse(localStorage.getItem("user")); // Parse the user object
   const userId = user?.id;
-  const navigate = useNavigate(); // NEW hook
+  const navigate = useNavigate();
 
-  // Use the emotion detection hook
-  const { emotionData, videoRef, canvasRef } = useEmotionDetection();
+  // Use the emotion detection hook only if `user.cameraOn` is true
+  const { emotionData, videoRef, canvasRef } = useEmotionDetection(user?.cameraOn);
 
   // Fetch tweets from the backend
   const fetchTweets = useCallback(
@@ -48,8 +48,7 @@ const Home = () => {
         }
       } catch (error) {
         console.error("Error fetching tweets:", error);
-        if(error.response?.data?.message === "Authentification requise"){
-          // Rediriger vers la page de connexion
+        if (error.response?.data?.message === "Authentification requise") {
           navigate("/login");
         }
       } finally {
@@ -82,7 +81,7 @@ const Home = () => {
         }
       } catch (error) {
         console.error("Error fetching following tweets:", error);
-        if(error.response?.data?.message === "Authentification requise"){
+        if (error.response?.data?.message === "Authentification requise") {
           navigate("/login");
         }
       } finally {
@@ -141,7 +140,7 @@ const Home = () => {
     setPage(1);
     setFollowingTweets([]);
     setHasMoreFollowing(true);
-    lastTweetRef.current = null;  // NEW: reset pagination pointer
+    lastTweetRef.current = null;
     fetchFollowingTweetsHandler(1);
   };
 
@@ -151,7 +150,7 @@ const Home = () => {
     setPage(1);
     setTweets([]);
     setHasMore(true);
-    lastTweetRef.current = null;  // NEW: reset pagination pointer
+    lastTweetRef.current = null;
     fetchTweets(1);
   };
 
@@ -159,10 +158,9 @@ const Home = () => {
     <Box
       sx={{
         height: "100vh",
-        backgroundColor: "#f5f8fa", // Background color for the entire page
+        backgroundColor: "#f5f8fa",
       }}
     >
-      {/* Bigger Container */}
       <Container
         maxWidth="md"
         sx={{
@@ -170,7 +168,7 @@ const Home = () => {
           display: "flex",
           flexDirection: "column",
           padding: 0,
-          backgroundColor: "#f5f8fa", // Same background color
+          backgroundColor: "#f5f8fa",
         }}
       >
         {/* Tweet Creation Section */}
@@ -230,9 +228,13 @@ const Home = () => {
           />
         )}
 
-        {/* Hidden Video and Canvas Elements */}
-        <video ref={videoRef} autoPlay playsInline style={{ display: "none" }} />
-        <canvas ref={canvasRef} style={{ display: "none" }} />
+        {/* Conditionally render video and canvas elements */}
+        {user?.cameraOn && (
+          <>
+            <video ref={videoRef} autoPlay playsInline style={{ display: "none" }} />
+            <canvas ref={canvasRef} style={{ display: "none" }} />
+          </>
+        )}
       </Container>
     </Box>
   );
