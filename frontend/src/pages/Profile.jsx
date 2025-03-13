@@ -94,7 +94,7 @@ const Profile = () => {
     switch (selectedTab) {
       case 0:
         axios
-          .get(`${API_URL}/api/tweet/user/${currentUser._id}/tweets`, {
+          .get(`${API_URL}/api/tweet/user/${currentUser.id}/tweets`, {
             headers: { Authorization: `Bearer ${token}` },
           })
           .then((res) => {
