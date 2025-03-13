@@ -1,5 +1,14 @@
-import { configureStore, createSlice } from "@reduxjs/toolkit";
+import { configureStore, createSlice, combineReducers } from "@reduxjs/toolkit";
+import { persistStore, persistReducer } from 'redux-persist';
+import storage from 'redux-persist/lib/storage';
 import socketMiddleware from "./middleware/socketMiddleware";
+
+// Configuration de la persistance
+const persistConfig = {
+  key: 'root',
+  storage,
+  whitelist: ['user', 'tweets', 'notifications'] // Liste des reducers à persister
+};
 
 // Slice utilisateur
 const userSlice = createSlice({
@@ -298,16 +307,44 @@ export const {
   removeOnlineUser
 } = socketSlice.actions;
 
-// Configurer le store avec tous les slices
-export const store = configureStore({
-  reducer: {
-    user: userSlice.reducer,
-    tweets: tweetSlice.reducer,
-    notifications: notificationSlice.reducer,
-    messages: messageSlice.reducer,
-    socket: socketSlice.reducer,
-  },
-  middleware: (getDefaultMiddleware) => 
-    getDefaultMiddleware()
-      .concat(socketMiddleware),
+// Combiner les reducers
+const rootReducer = combineReducers({
+  user: userSlice.reducer,
+  tweets: tweetSlice.reducer,
+  notifications: notificationSlice.reducer,
+  messages: messageSlice.reducer,
+  socket: socketSlice.reducer,
 });
+
+// Wrapper pour gérer la réinitialisation de l'application
+const appReducer = (state, action) => {
+  // Quand l'action RESET_APP_STATE est dispatched, on réinitialise tout l'état
+  if (action.type === 'RESET_APP_STATE') {
+    // On garde uniquement certains paramètres comme les thèmes ou les préférences si nécessaire
+    return rootReducer(undefined, action);
+  }
+  return rootReducer(state, action);
+};
+
+// Créer le store avec persistance
+const persistedReducer = persistReducer(persistConfig, appReducer);
+
+// Créer le socketMiddleware sans closure
+const socketMiddlewareInstance = socketMiddleware();
+
+const store = configureStore({
+  reducer: persistedReducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
+      },
+    }).concat(socketMiddlewareInstance),
+});
+
+export const persistor = persistStore(store);
+
+// Connecter le socket quand l'application est chargée
+// store.dispatch({ type: 'socket/connect' });
+
+export default store;

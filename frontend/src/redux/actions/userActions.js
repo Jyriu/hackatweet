@@ -88,6 +88,7 @@ export const registerUser = (userData) => async (dispatch) => {
 // Action pour se déconnecter
 export const logoutUser = () => (dispatch) => {
   dispatch(disconnectFromSocket());
+  dispatch({ type: 'RESET_APP_STATE' });
   dispatch(logout());
 };
 
