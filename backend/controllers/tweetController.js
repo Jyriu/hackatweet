@@ -2,9 +2,11 @@
 const mongoose = require('mongoose');
 const Tweet = mongoose.model('Tweet');
 const User = mongoose.model('User');
+const Replies = mongoose.model('Replies');
+const Emotion = mongoose.model('Emotion');
 
 // Créer un nouveau tweet
-exports.createTweet = async (req, res) => {
+/* exports.createTweet = async (req, res) => {
     try {
 
         const { text, mediaUrl } = req.body;
@@ -60,18 +62,171 @@ exports.createTweet = async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la création du tweet', error: error.message });
     }
 };
+ */
 
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/')
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname))
+  }
+});
+
+const upload = multer({ storage: storage });
+
+// Export the upload middleware
+module.exports.upload = upload;
+exports.createTweet = async (req, res) => {
+    try {
+      const { content, hashtags = [], mentions = [], link } = req.body; // Include `link`
+      const author = req.user.id;
+      
+      // Handle file upload
+      const mediaUrl = req.file ? `/uploads/${req.file.filename}` : '';
+  
+      // Convert mentions to user IDs
+      const idmentions = await Promise.all(
+        JSON.parse(mentions).map(async (username) => {
+          const user = await User.findOne({ username });
+          return user?._id;
+        })
+      );
+  
+      const newTweet = new Tweet({
+        text: content,
+        mediaUrl,
+        link, // Add the link field here
+        hashtags: JSON.parse(hashtags),
+        idmentions: idmentions.filter(id => id),
+        author,
+      });
+  
+      await newTweet.save();
+      
+      // Populate author information before sending response
+      const populatedTweet = await Tweet.findById(newTweet._id)
+        .populate('author', 'username')
+        .populate('idmentions', 'username');
+  
+      res.status(201).json(populatedTweet);
+    } catch (error) {
+      console.error("Error creating tweet:", error);
+      res.status(500).json({ message: "Error creating tweet" });
+    }
+  };
+  
 
 // Récupérer tous les tweets triés par date
-exports.getTweets = async (req, res) => {
+/* exports.getTweets = async (req, res) => {
     try {
-        const tweets = await Tweet.find().populate('author', 'username').sort({ date: -1 });
+        const tweets = await Tweet.find().populate('author', 'username').sort({ date: -1 }).limit(5);
         res.json(tweets);
     } catch (error) {
         console.error('Erreur lors de la récupération des tweets:', error);
         res.status(500).json({ message: 'Erreur lors de la récupération des tweets', error: error.message });
     }
-};
+}; */
+
+exports.getTweets = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, userId } = req.query;
+        const parsedLimit = parseInt(limit);
+        const parsedPage = parseInt(page);
+
+        // 1. Find the user and their negative hashtags
+        const user = await User.findById(userId);
+        const negativeHashtags = user?.hashtagNegatif || [];
+
+        // 2. Get seen tweet IDs
+        const seenTweetIds = await Emotion.find({ user_id: userId }).distinct('tweet_id');
+
+        let allMatchingTweets = [];
+        let currentPage = parsedPage;
+
+        while (allMatchingTweets.length < parsedLimit) {
+            // 3. Build query for unseen tweets
+            let query = Tweet.find({
+                _id: { $nin: seenTweetIds }
+            })
+            .populate('author', 'username name profilePicture')
+            .populate({
+                path: 'originalTweet',
+                populate: {
+                    path: 'author',
+                    select: 'username name profilePicture'
+                }
+            })
+            .populate('retweets')
+            .populate('usersave') // Add this line to populate usersave
+            .sort({ date: -1 });
+
+            // 4. Paginate and execute the query
+            const tweets = await query
+                .skip((currentPage - 1) * parsedLimit)
+                .limit(parsedLimit)
+                .lean()
+                .exec();
+
+            if (tweets.length === 0) {
+                // No more tweets to fetch
+                break;
+            }
+
+            // 5. Filter out tweets containing any negative hashtags
+            const filteredTweets = tweets.filter(tweet => {
+                if (!tweet.hashtags) return true; // If no hashtags, keep the tweet
+                return !tweet.hashtags.some(hashtag => negativeHashtags.includes(hashtag));
+            });
+
+            // 6. Add filtered tweets to the result
+            allMatchingTweets = [...allMatchingTweets, ...filteredTweets];
+
+            if (allMatchingTweets.length >= parsedLimit) {
+                // We have enough tweets
+                break;
+            }
+
+            // 7. Increment the page for the next iteration
+            currentPage++;
+
+            // 8. Add processed tweets to seenTweetIds
+            tweets.forEach(tweet => {
+                if (!seenTweetIds.includes(tweet._id)) {
+                    seenTweetIds.push(tweet._id);
+                }
+            });
+        }
+
+        // 9. Truncate the result to the requested limit
+        const finalTweets = allMatchingTweets.slice(0, parsedLimit);
+
+        // 10. Get the total number of tweets matching criteria
+        const totalMatchingTweets = await Tweet.countDocuments({
+            _id: { $nin: seenTweetIds },
+            hashtags: { $not: { $in: negativeHashtags } }
+        });
+
+        const hasMore = totalMatchingTweets > ((parsedPage) * parsedLimit);
+        res.json({
+            tweets: finalTweets,
+            hasMore,
+            total: totalMatchingTweets
+        });
+
+    } catch (error) {
+        console.error('Error fetching tweets:', error);
+        res.status(500).json({
+            message: 'Error fetching tweets',
+            error: error.message
+        });
+    }
+  };
+  
+  
 
 // Récupérer tous les tweets de l'utilisateur connecté
 exports.getUserTweets = async (req, res) => {
@@ -249,7 +404,7 @@ exports.deleteAllTweets = async (req, res) => {
 // Ajouter ou retirer un like à un tweet
 exports.likeTweet = async (req, res) => {
     try {
-        const tweet = await Tweet.findById(req.params.id);
+        let tweet = await Tweet.findById(req.params.id);
         const user = await User.findById(req.user.id);
 
         if (!tweet) {
@@ -260,13 +415,9 @@ exports.likeTweet = async (req, res) => {
         if (tweet.userLikes.includes(req.user.id)) {
             // Retirer le like
             tweet.userLikes = tweet.userLikes.filter(userId => userId.toString() !== req.user.id);
-            await tweet.save();
-            console.log(`✅ [Tweet] Like retiré par ${req.user.id} pour le tweet ${tweet._id}`);
-            return res.json({ message: 'Like retiré', tweet });
         } else {
             // Ajouter le like
             tweet.userLikes.push(req.user.id);
-            await tweet.save();
 
             // Si l'utilisateur qui like n'est pas l'auteur du tweet, envoyer une notification
             if (tweet.author.toString() !== req.user.id) {
@@ -278,18 +429,38 @@ exports.likeTweet = async (req, res) => {
                     contentModel: 'Tweet',
                     read: false
                 });
-                console.log(`✅ [Tweet] Like + notification envoyée de ${req.user.id} à ${tweet.author} pour le tweet ${tweet._id}`);
-            } else {
-                console.log(`✅ [Tweet] Like sans notification (auteur = liker) pour le tweet ${tweet._id}`);
             }
-
-            return res.json({ message: 'Tweet liké', tweet });
         }
+
+        await tweet.save();
+
+        // Populate the tweet with necessary data
+        tweet = await Tweet.findById(tweet._id)
+            .populate('author', 'username name profilePicture')
+            .populate({
+                path: 'originalTweet',
+                populate: {
+                    path: 'author',
+                    select: 'username name profilePicture'
+                }
+            })
+            .populate('retweets')
+            .lean();
+
+        // Add any additional fields that might be needed
+        tweet.isLiked = tweet.userLikes.includes(req.user.id);
+        tweet.likeCount = tweet.userLikes.length;
+        tweet.retweetCount = tweet.retweets.length;
+
+        const message = tweet.userLikes.includes(req.user.id) ? 'Tweet liké' : 'Like retiré';
+        res.json({ message, tweet });
+
     } catch (error) {
         console.error(`📛 [Tweet] Erreur lors du like: ${error.message}`, error);
         res.status(500).json({ message: 'Erreur lors de l\'ajout du like', error: error.message });
     }
 };
+
 
 // Retweeter un tweet
 exports.retweet = async (req, res) => {
@@ -299,7 +470,8 @@ exports.retweet = async (req, res) => {
         if (!originalTweet) {
             return res.status(404).json({ message: 'Tweet non trouvé' });
         }
-        const newTweet = new Tweet({
+        
+        let newTweet = new Tweet({
             text: text,
             mediaUrl: mediaUrl,
             author: req.user.id,
@@ -309,6 +481,7 @@ exports.retweet = async (req, res) => {
             originalTweet: originalTweet._id,
             date: new Date()
         });
+        
         await newTweet.save();
         originalTweet.retweets.push(newTweet.id);
         await originalTweet.save();
@@ -325,6 +498,24 @@ exports.retweet = async (req, res) => {
             });
         }
 
+        // Populate the new tweet with necessary data
+        newTweet = await Tweet.findById(newTweet._id)
+            .populate('author', 'username name profilePicture')
+            .populate({
+                path: 'originalTweet',
+                populate: {
+                    path: 'author',
+                    select: 'username name profilePicture'
+                }
+            })
+            .populate('retweets')
+            .lean();
+
+        // Add additional fields that might be needed
+        newTweet.isLiked = false; // The new tweet has just been created, so it's not liked by the user
+        newTweet.likeCount = 0;
+        newTweet.retweetCount = newTweet.retweets.length;
+
         res.status(201).json(newTweet);
     } catch (error) {
         console.error('Erreur lors du retweet:', error);
@@ -332,32 +523,53 @@ exports.retweet = async (req, res) => {
     }
 };
 
+
 // Ajouter ou retirer un signet à un tweet
 exports.bookmarkTweet = async (req, res) => {
     try {
-        const tweet = await Tweet.findById(req.params.id);
+        let tweet = await Tweet.findById(req.params.id);
         const user = await User.findById(req.user.id);
 
         if (!tweet) {
             return res.status(404).json({ message: 'Tweet non trouvé' });
         }
 
-        if (user.signet.includes(req.params.id)) {
-            // Retirer le signet
+        const isBookmarked = user.signet.includes(req.params.id);
+
+        if (isBookmarked) {
+            // Remove bookmark
             user.signet = user.signet.filter(tweetId => tweetId.toString() !== req.params.id);
             tweet.usersave = tweet.usersave.filter(userId => userId.toString() !== req.user.id);
-            await user.save();
-            await tweet.save();
-            return res.json({ message: 'Tweet retiré des signets', tweet });
+        } else {
+            // Add bookmark
+            user.signet.push(req.params.id);
+            tweet.usersave.push(req.user.id);
         }
 
-        // Ajouter le signet
-        user.signet.push(req.params.id);
-        tweet.usersave.push(req.user.id);
         await user.save();
         await tweet.save();
 
-        res.json({ message: 'Tweet enregistré en signet', tweet });
+        // Fetch the updated tweet with all necessary information
+        tweet = await Tweet.findById(req.params.id)
+            .populate('author', 'username name profilePicture')
+            .populate({
+                path: 'originalTweet',
+                populate: {
+                    path: 'author',
+                    select: 'username name profilePicture'
+                }
+            })
+            .populate('retweets')
+            .lean();
+
+        // Add additional fields
+        tweet.isBookmarked = !isBookmarked;
+        tweet.bookmarkCount = tweet.usersave.length;
+        tweet.retweetCount = tweet.retweets.length;
+        tweet.likeCount = tweet.userLikes.length;
+
+        const message = isBookmarked ? 'Tweet retiré des signets' : 'Tweet enregistré en signet';
+        res.json({ message, tweet });
     } catch (error) {
         console.error('Erreur lors de l\'enregistrement du tweet en signet:', error);
         res.status(500).json({ message: 'Erreur lors de l\'enregistrement du tweet en signet', error: error.message });
@@ -365,3 +577,16 @@ exports.bookmarkTweet = async (req, res) => {
 };
 
 
+exports.getTweetsByUser = async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      // On récupère les tweets dont l'auteur correspond à userId, triés par date décroissante.
+      const tweets = await Tweet.find({ author: userId })
+        .populate('author', 'username photo')
+        .sort({ date: -1 });
+      res.json(tweets);
+    } catch (error) {
+      console.error("Error fetching tweets by user:", error);
+      res.status(500).json({ message: "Error fetching tweets by user", error: error.message });
+    }
+};

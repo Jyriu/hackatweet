@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const messageSchema = new Schema({
+  conversation: {
+    type: Schema.Types.ObjectId,
+    ref: 'Conversation',
+    required: true
+  },
   sender: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -28,6 +33,7 @@ const messageSchema = new Schema({
 });
 
 // Index pour rechercher rapidement les conversations
+messageSchema.index({ conversation: 1 });
 messageSchema.index({ sender: 1, recipient: 1 });
 messageSchema.index({ createdAt: -1 });
 

@@ -15,19 +15,24 @@ require('./models/Replies');
 require('./models/Notification');
 require('./models/Emotion');
 require('./models/Message');
+require('./models/Conversation');
 const User = mongoose.model('User');
 const Notification = mongoose.model('Notification');
 const Message = mongoose.model('Message');
+const Conversation = mongoose.model('Conversation');
+
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+
 
 // Middleware de base
 app.use(cors());
 app.use(express.json());
 
 // Exposer le dossier uploads pour servir les images
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+app.use('/uploads', express.static(path.join(__dirname, 'upload')));
 
 // Route de test simple
 // Route pour créer un utilisateur test (temporaire)
@@ -61,25 +66,25 @@ app.get('/api/test', async (req, res) => {
   }
 });
 
-// Importation des routes
-const authRoutes = require('./routes/authRoutes');
-const tweetRoutes = require('./routes/tweetRoutes');
-const userRoutes = require('./routes/userRoutes');
-const emotionRoutes = require('./routes/emotionRoutes');
-
-const searchRoutes = require('./routes/searchRoutes');
-const notificationRoutes = require('./routes/notificationRoutes');
-const messageRoutes = require('./routes/messageRoutes');
+// Importer les routes
+const userRoutes = require("./routes/userRoutes");
+const tweetRoutes = require("./routes/tweetRoutes");
+const authRoutes = require("./routes/authRoutes");
+const messageRoutes = require("./routes/messageRoutes");
+const searchRoutes = require("./routes/searchRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+const emotionRoutes = require("./routes/emotionRoutes");
+const conversationRoutes = require("./routes/conversationRoutes");
 
 // Application des routes
-app.use('/api/auth', authRoutes);
+app.use('/api/user', userRoutes);
 app.use('/api/tweet', tweetRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/emotions', emotionRoutes)
+app.use('/api/auth', authRoutes);
+app.use('/api/messages', messageRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/messages', messageRoutes);
-
+app.use('/api/emotions', emotionRoutes);
+app.use('/api/conversations', conversationRoutes);
 
 const createTweets = async () => {
   try {
@@ -87,7 +92,7 @@ const createTweets = async () => {
     const tweets = [];
     const authorId = '67d00c5e00073dd855bac0a5';
 
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 5; i++) {
       const tweet = new Tweet({
         text: faker.lorem.sentence(),
         author: authorId,
@@ -104,7 +109,6 @@ const createTweets = async () => {
     console.error('Error creating tweets:', error);
   } 
 };
-
 
 // Créer le serveur HTTP
 const server = http.createServer(app);
@@ -174,69 +178,151 @@ io.on('connection', (socket) => {
   // Envoi d'un message à un utilisateur
   socket.on('send_message', async (data) => {
     try {
-      const { recipientId, content } = data;
+      const { conversationId, content } = data;
       
-      if (!recipientId || !content) {
+      if (!conversationId || !content) {
         return socket.emit('message_error', { error: 'Données manquantes' });
+      }
+      
+      console.log(`Tentative d'envoi de message: conversation=${conversationId}, content=${content}`);
+      
+      // Trouver la conversation
+      const conversation = await Conversation.findOne({
+        _id: conversationId,
+        participants: socket.user._id
+      });
+      
+      if (!conversation) {
+        return socket.emit('message_error', { error: 'Conversation non trouvée ou accès refusé' });
+      }
+      
+      // Trouver l'autre participant
+      const recipientId = conversation.participants.find(
+        p => p.toString() !== socket.user._id.toString()
+      );
+      
+      if (!recipientId) {
+        return socket.emit('message_error', { error: 'Destinataire non trouvé' });
       }
       
       // Créer et sauvegarder le message
       const newMessage = new Message({
+        conversation: conversationId,
         sender: socket.user._id,
         recipient: recipientId,
-        content
+        content,
+        read: false,
+        createdAt: new Date()
       });
       
       await newMessage.save();
       
-      // Enrichir les données du message avec les informations de l'expéditeur
-      const messageWithSender = {
-        ...newMessage._doc,
-        sender: {
-          _id: socket.user._id,
-          username: socket.user.username
+      // Mettre à jour le dernier message et la date de mise à jour de la conversation
+      // Et incrémenter le compteur de messages non lus pour le destinataire
+      const unreadCount = conversation.unreadCount || new Map();
+      const recipientUnread = unreadCount.get(recipientId.toString()) || 0;
+      unreadCount.set(recipientId.toString(), recipientUnread + 1);
+      
+      await Conversation.updateOne(
+        { _id: conversationId },
+        { 
+          lastMessage: newMessage._id,
+          updatedAt: new Date(),
+          unreadCount
         }
+      );
+      
+      // Récupérer les détails de l'expéditeur pour la réponse
+      const populatedMessage = await Message.findById(newMessage._id)
+        .populate('sender', '_id username photo')
+        .populate('recipient', '_id username photo');
+      
+      // Enrichir les données du message pour le frontend
+      const enrichedMessage = {
+        ...populatedMessage.toObject(),
+        conversation: conversationId
       };
       
+      console.log(`Message créé et enrichi:`, JSON.stringify(enrichedMessage, null, 2));
+      
       // Envoyer le message à l'expéditeur pour confirmation
-      socket.emit('message_sent', messageWithSender);
+      socket.emit('message_sent', enrichedMessage);
       
       // Envoyer le message au destinataire s'il est connecté
-      const recipientSocketId = userSocketMap[recipientId];
+      const recipientSocketId = userSocketMap[recipientId.toString()];
       if (recipientSocketId) {
-        io.to(recipientSocketId).emit('new_message', messageWithSender);
+        io.to(recipientSocketId).emit('new_message', enrichedMessage);
       }
       
-      console.log(`📨 [Message] De ${socket.user.username} à ${recipientId}`);
+      console.log(`📨 [Message] De ${socket.user.username} à ${recipientId} dans la conversation ${conversationId}`);
     } catch (error) {
       console.error('Erreur envoi message:', error);
       socket.emit('message_error', { error: error.message });
     }
   });
   
-  // Marquer un message comme lu
-  socket.on('mark_message_read', async (data) => {
+  // Marquer les messages d'une conversation comme lus
+  socket.on('mark_conversation_read', async (data) => {
     try {
-      const { messageId } = data;
+      const { conversationId } = data;
       
-      // Mettre à jour le message
-      const message = await Message.findByIdAndUpdate(
-        messageId,
-        { read: true },
-        { new: true }
+      if (!conversationId) {
+        return socket.emit('message_error', { error: 'ID de conversation manquant' });
+      }
+      
+      // Vérifier si la conversation existe et si l'utilisateur y participe
+      const conversation = await Conversation.findOne({
+        _id: conversationId,
+        participants: socket.user._id
+      });
+      
+      if (!conversation) {
+        return socket.emit('message_error', { error: 'Conversation non trouvée ou accès refusé' });
+      }
+      
+      // Marquer tous les messages non lus adressés à l'utilisateur comme lus
+      const result = await Message.updateMany(
+        {
+          conversation: conversationId,
+          recipient: socket.user._id,
+          read: false
+        },
+        { read: true }
       );
       
-      if (!message) {
-        return socket.emit('message_error', { error: 'Message non trouvé' });
+      // Mettre à jour le compteur de messages non lus dans la conversation
+      const unreadCount = conversation.unreadCount || new Map();
+      unreadCount.set(socket.user._id.toString(), 0);
+      
+      await Conversation.updateOne(
+        { _id: conversationId },
+        { unreadCount }
+      );
+      
+      // Notifier le client que les messages ont été marqués comme lus
+      socket.emit('conversation_read', { 
+        conversationId,
+        count: result.modifiedCount
+      });
+      
+      // Notifier l'autre participant si nécessaire
+      const otherParticipant = conversation.participants.find(
+        p => p.toString() !== socket.user._id.toString()
+      );
+      
+      if (otherParticipant) {
+        const otherParticipantSocketId = userSocketMap[otherParticipant.toString()];
+        if (otherParticipantSocketId) {
+          io.to(otherParticipantSocketId).emit('other_user_read_messages', {
+            conversationId,
+            userId: socket.user._id
+          });
+        }
       }
       
-      // Notifier l'expéditeur que le message a été lu
-      const senderSocketId = userSocketMap[message.sender.toString()];
-      if (senderSocketId) {
-        io.to(senderSocketId).emit('message_read', { messageId });
-      }
+      console.log(`📖 [Messages] ${result.modifiedCount} messages marqués comme lus par ${socket.user.username} dans la conversation ${conversationId}`);
     } catch (error) {
-      console.error('Erreur marquer message comme lu:', error);
+      console.error('Erreur marquer conversation comme lue:', error);
       socket.emit('message_error', { error: error.message });
     }
   });
@@ -286,7 +372,7 @@ global.sendNotification = sendNotification;
 
 // Connexion à MongoDB puis démarrage du serveur
 mongoose
-  .connect(process.env.MONGO_URI)
+  .connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('Connecté à MongoDB');
     //createTweets()

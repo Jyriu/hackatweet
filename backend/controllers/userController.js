@@ -389,3 +389,31 @@ exports.toggleUserSetting = async (req, res) => {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
+
+
+// Récupérer les utilisateurs à suggerer pour la mention dans la creation d'un tweet
+exports.searchUsers = async (req, res) => {
+  try {
+    const query = req.query.query;
+    const users = await User.find({ username: { $regex: query, $options: "i" } }).limit(5); // Limit to 5 suggestions
+    res.json(users);
+  } catch (error) {
+    console.error("Error searching users:", error);
+    res.status(500).json({ message: "Error searching users" });
+  }
+};
+
+// récupérer l'utilisateur par son nom
+exports.getUserByUsername = async (req, res) => {
+  try {
+    const username = req.params.username;
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error("Error fetching user by username:", error);
+    res.status(500).json({ message: "Error fetching user" });
+  }
+};

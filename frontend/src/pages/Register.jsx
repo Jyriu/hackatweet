@@ -1,16 +1,27 @@
-import React, { useState, useContext } from "react";
-import axios from "axios";
-import {
-  Container,
-  TextField,
-  Button,
-  Card,
-  CardContent,
+import React, { useState } from "react";
+import { 
+  TextField, 
+  Button, 
+  Alert, 
+  CircularProgress, 
+  Grid,
+  Box,
+  InputAdornment,
+  IconButton,
+  Divider,
   Typography,
-  Alert,
+  Link
 } from "@mui/material";
-import { UserContext } from "../context/UserContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link as RouterLink } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import AuthLayout from "../components/AuthLayout";
+import PersonIcon from '@mui/icons-material/Person';
+import EmailIcon from '@mui/icons-material/Email';
+import BadgeIcon from '@mui/icons-material/Badge';
+import LockIcon from '@mui/icons-material/Lock';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import BioIcon from '@mui/icons-material/Description';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -21,10 +32,10 @@ const Register = () => {
     username: "",
     bio: "",
   });
-
-  const [error, setError] = useState(null);
-  const { setUser } = useContext(UserContext);
+  const [showPassword, setShowPassword] = useState(false);
+  const { register, error, loading } = useAuth();
   const navigate = useNavigate();
+  const url = import.meta.env.VITE_BACKEND_URL;
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -32,108 +43,223 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+
+    // Simple validation
+    if (!formData.email || !formData.password || !formData.username) {
+      return;
+    }
 
     try {
-      const response = await axios.post("http://localhost:5001/api/auth/register", formData);
-
-      // Récupération du token et de l'utilisateur renvoyé par le backend
-      const { token, user } = response.data;
-
-      // Stockage du token dans le localStorage
-      localStorage.setItem("token", token);
-
-      // Mise à jour du contexte utilisateur
-      setUser(user);
-
-      // Redirection vers la page d'accueil
-      navigate("/");
+      console.log("Tentative d'inscription...");
+      await register(formData);
+      console.log("Inscription réussie, redirection vers /");
+      
+      // Redirection vers la page d'accueil (forcée avec un délai)
+      setTimeout(() => {
+        console.log("Redirection forcée");
+        navigate("/", { replace: true });
+      }, 100);
     } catch (err) {
-      if (err.response && err.response.data && err.response.data.message) {
-        setError(err.response.data.message);
-      } else {
-        setError("Une erreur est survenue. Veuillez réessayer.");
-      }
+      // L'erreur est déjà gérée par le hook useAuth
+      console.error("Erreur d'inscription:", err);
     }
   };
 
   return (
-    <Container maxWidth="sm" sx={{ marginTop: 5 }}>
-      <Card sx={{ padding: 3 }}>
-        <CardContent>
-          <Typography variant="h5" textAlign="center" color="primary">
-            Inscription
-          </Typography>
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-          <form onSubmit={handleSubmit}>
+    <AuthLayout 
+      title="Créer un compte" 
+      subtitle="Rejoignez notre communauté et commencez à partager"
+    >
+      <form onSubmit={handleSubmit}>
+        {error && (
+          <Alert 
+            severity="error" 
+            sx={{ 
+              mb: 3, 
+              borderRadius: 2,
+              fontSize: '0.9rem'
+            }}
+          >
+            {error}
+          </Alert>
+        )}
+
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
               label="Nom"
               name="nom"
-              margin="normal"
               variant="outlined"
               onChange={handleChange}
+              disabled={loading}
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PersonIcon sx={{ color: 'primary.main' }} />
+                  </InputAdornment>
+                ),
+              }}
             />
+          </Grid>
+          <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
               label="Prénom"
               name="prenom"
-              margin="normal"
               variant="outlined"
               onChange={handleChange}
+              disabled={loading}
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <PersonIcon sx={{ color: 'primary.main' }} />
+                  </InputAdornment>
+                ),
+              }}
             />
+          </Grid>
+          <Grid item xs={12}>
             <TextField
               fullWidth
               label="Nom d'utilisateur"
               name="username"
-              margin="normal"
               variant="outlined"
               onChange={handleChange}
+              disabled={loading}
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <BadgeIcon sx={{ color: 'primary.main' }} />
+                  </InputAdornment>
+                ),
+              }}
             />
+          </Grid>
+          <Grid item xs={12}>
             <TextField
               fullWidth
               label="Adresse Email"
               name="email"
-              margin="normal"
+              type="email"
               variant="outlined"
               onChange={handleChange}
+              disabled={loading}
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <EmailIcon sx={{ color: 'primary.main' }} />
+                  </InputAdornment>
+                ),
+              }}
             />
+          </Grid>
+          <Grid item xs={12}>
             <TextField
               fullWidth
               label="Mot de passe"
               name="password"
-              type="password"
-              margin="normal"
+              type={showPassword ? "text" : "password"}
               variant="outlined"
               onChange={handleChange}
+              disabled={loading}
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LockIcon sx={{ color: 'primary.main' }} />
+                  </InputAdornment>
+                ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? (
+                        <VisibilityOffIcon />
+                      ) : (
+                        <VisibilityIcon />
+                      )}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
+          </Grid>
+          <Grid item xs={12}>
             <TextField
               fullWidth
               label="Bio"
               name="bio"
-              margin="normal"
               variant="outlined"
               multiline
               rows={3}
               onChange={handleChange}
+              disabled={loading}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
+                    <BioIcon sx={{ color: 'primary.main' }} />
+                  </InputAdornment>
+                ),
+              }}
             />
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              color="primary"
-              sx={{ marginTop: 2 }}
-            >
-              S'inscrire
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </Container>
+          </Grid>
+        </Grid>
+
+        <Button 
+          type="submit" 
+          fullWidth 
+          variant="contained" 
+          color="primary" 
+          size="large"
+          disabled={loading || !formData.email || !formData.password || !formData.username}
+          sx={{ 
+            py: 1.5,
+            mt: 3,
+            mb: 2
+          }}
+        >
+          {loading ? (
+            <CircularProgress size={24} color="inherit" /> 
+          ) : (
+            "S'inscrire"
+          )}
+        </Button>
+        
+        <Divider sx={{ my: 3 }}>
+          <Typography variant="body2" color="text.secondary">
+            OU
+          </Typography>
+        </Divider>
+        
+        <Box sx={{ textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Vous avez déjà un compte ?
+          </Typography>
+          <Link 
+            component={RouterLink} 
+            to="/login" 
+            variant="body1"
+            sx={{ 
+              color: 'primary.main',
+              fontWeight: 500,
+              textDecoration: 'none',
+              '&:hover': {
+                textDecoration: 'underline'
+              }
+            }}
+          >
+            Connectez-vous
+          </Link>
+        </Box>
+      </form>
+    </AuthLayout>
   );
 };
 

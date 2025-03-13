@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 import {
   TextField,
   Button,
@@ -7,54 +7,60 @@ import {
   Typography,
   Alert,
   Snackbar,
+  IconButton,
+  Box,
 } from "@mui/material";
-import { useDropzone } from "react-dropzone";
-import { UserContext } from "../context/UserContext";
-import { Link } from "react-router-dom";
+import AddPhotoAlternateIcon from "@mui/icons-material/AddPhotoAlternate";
+import InsertLinkIcon from "@mui/icons-material/InsertLink";
+
+import { createTweet } from "../services/api";
 
 const NewTweet = ({ onAddTweet }) => {
-  const { user } = useContext(UserContext);
   const [tweetContent, setTweetContent] = useState("");
-  const [image, setImage] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [link, setLink] = useState("");
   const [error, setError] = useState("");
-  const [open, setOpen] = useState(false); // Pour afficher la notification
+  const [open, setOpen] = useState(false);
 
-  const onDrop = (acceptedFiles) => {
-    const file = acceptedFiles[0];
+  const handleMediaUpload = (event) => {
+    const file = event.target.files[0];
     if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setImage(imageUrl);
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
     }
   };
 
-  const handlePostTweet = () => {
+  const handleLinkInput = () => {
+    const inputLink = prompt("Enter a link:");
+    if (inputLink) {
+      setLink(inputLink);
+    }
+  };
+
+  const handlePostTweet = async () => {
     if (tweetContent.trim() === "") {
       setError("Le tweet ne peut pas être vide !");
       return;
     }
 
-    const newTweet = {
-      idTweet: Date.now(),
-      contentxt: tweetContent,
-      mediaUrl: image,
-      auteur: user ? user.username : "Anonyme",
-      userLikes: [],
-      hashtags: [],
-      date: new Date().toISOString(),
-    };
+    try {
+      const newTweet = await createTweet(tweetContent, selectedFile, link);
+      onAddTweet(newTweet); // Notify parent component about the new tweet
 
-    onAddTweet(newTweet);
-    setTweetContent("");
-    setImage(null);
-    setError("");
-    setOpen(true); // Afficher la notification
+      // Reset fields
+      setTweetContent("");
+      setSelectedFile(null);
+      setPreviewUrl("");
+      setLink("");
+      setError("");
+      setOpen(true);
+      
+    } catch (error) {
+      console.error("Error creating tweet:", error);
+      setError("Failed to post tweet. Please try again.");
+    }
   };
-
-  const { getRootProps, getInputProps } = useDropzone({
-    onDrop,
-    accept: "image/*",
-  });
-
   return (
     <Card sx={{ marginBottom: 2, padding: 2 }}>
       <CardContent>
@@ -67,75 +73,72 @@ const NewTweet = ({ onAddTweet }) => {
           </Alert>
         )}
 
-        {user ? (
-          <Typography variant="body2">
-            Connecté en tant que <b>{user.username}</b>
-          </Typography>
-        ) : (
-          <Typography color="error">
-            Veuillez vous <Link to="/login">connecter</Link>
-          </Typography>
-        )}
-
         <TextField
           fullWidth
           multiline
-          rows={2}
+          rows={4}
           label="Quoi de neuf ?"
           variant="outlined"
           value={tweetContent}
           onChange={(e) => setTweetContent(e.target.value)}
           sx={{ marginTop: 2 }}
+          placeholder="Utilisez # pour les hashtags et @ pour mentionner des utilisateurs"
         />
 
-        {/* Zone d'upload d'image */}
-        <div
-          {...getRootProps()}
-          style={{
-            border: "2px dashed #ccc",
-            borderRadius: "10px",
-            padding: "10px",
-            textAlign: "center",
-            cursor: "pointer",
-            marginTop: "10px",
-          }}
-        >
-          <input {...getInputProps()} />
-          <Typography variant="body2" color="textSecondary">
-            Glisser-déposer une image ou cliquez pour en sélectionner une.
-          </Typography>
-        </div>
+        <Box sx={{ display: "flex", gap: 1, marginTop: 2 }}>
+          <input
+            accept="image/*"
+            style={{ display: "none" }}
+            id="media-upload"
+            type="file"
+            onChange={handleMediaUpload}
+          />
+          <label htmlFor="media-upload">
+            <IconButton color="primary" component="span">
+              <AddPhotoAlternateIcon />
+            </IconButton>
+          </label>
 
-        {/* Aperçu de l'image uploadée */}
-        {image && (
-          <div style={{ marginTop: "10px", textAlign: "center" }}>
+          <IconButton color="primary" onClick={handleLinkInput}>
+            <InsertLinkIcon />
+          </IconButton>
+        </Box>
+
+        {previewUrl && (
+          <Box sx={{ marginTop: 2 }}>
             <img
-              src={image}
-              alt="Aperçu"
-              style={{ maxWidth: "100%", borderRadius: "10px" }}
+              src={previewUrl}
+              alt="Media Preview"
+              style={{ maxWidth: "100%", borderRadius: "8px" }}
             />
-          </div>
+          </Box>
         )}
 
-        {/* Bouton pour publier le tweet */}
+        {link && (
+          <Box sx={{ marginTop: 2 }}>
+            <Typography variant="body2">
+              Link added: <a href={link} target="_blank" rel="noopener noreferrer">{link}</a>
+            </Typography>
+          </Box>
+        )}
+
         <Button
           variant="contained"
           color="primary"
           sx={{ marginTop: 2 }}
           onClick={handlePostTweet}
           fullWidth
-          disabled={!user}
         >
           Tweeter
         </Button>
 
-        {/* Notification "Tweet posté avec succès" */}
         <Snackbar
           open={open}
           autoHideDuration={2000}
           onClose={() => setOpen(false)}
           message="Tweet posté avec succès !"
         />
+        
       </CardContent>
     </Card>
   );

@@ -1,242 +1,142 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Container, Typography, Grid, CircularProgress, Box } from "@mui/material";
-import Tweet from "../components/Tweet";
-import NewTweet from "../components/NewTweet";
-import axios from "axios";
-import { v4 as uuidv4 } from 'uuid';
+import { Container, Typography, Box } from "@mui/material";
+import TweetCreation from "../components/TweetCreation";
+import TweetList from "../components/TweetList";
+import { fetchTweetsFromApi, saveEmotionToApi } from "../services/api";
+import useEmotionDetection from "../hooks/useEmotionDetection";
+import { useSelector } from "react-redux";
+
+
 const Home = () => {
   const [tweets, setTweets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [emotionData, setEmotionData] = useState(null); // State for emotion analysis results
-  const [visibleTweetId, setVisibleTweetId] = useState(null); // State for the currently visible tweet ID
-  const [page, setPage] = useState(1); // State for pagination
-  const [hasMore, setHasMore] = useState(true); // State to track if more tweets are available
-  const videoRef = useRef(null); // Ref for the video element
-  const canvasRef = useRef(null); // Ref for the canvas element
-  const tweetsContainerRef = useRef(null); // Ref for the tweets container
+  const [visibleTweetId, setVisibleTweetId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const isFetching = useRef(false);
+  const lastTweetRef = useRef(null);
+  const user = useSelector((state) => state.user.currentUser);
+  const userId = user?.id;
 
-  // Load tweets from the backend
-  const fetchTweets = async (page) => {
-    try {
-      const response = await axios.get(`http://localhost:5001/api/tweet/tweets?page=${page}&limit=10`);
-      if (response.data.length > 0) {
-        setTweets((prevTweets) => [...prevTweets, ...response.data]);
-      } else {
-        setHasMore(false); // No more tweets to load
+  // Use the emotion detection hook
+  const { emotionData, videoRef, canvasRef } = useEmotionDetection();
+
+  // Fetch tweets from the backend
+  const fetchTweets = useCallback(
+    async (pageNumber) => {
+      if (isFetching.current || !hasMore) return;
+      isFetching.current = true;
+
+      try {
+        setLoading(true);
+        const data = await fetchTweetsFromApi(pageNumber, userId);
+        if (data && data.tweets.length > 0) {
+          setTweets((prevTweets) => {
+            const newTweets = data.tweets.filter(
+              (newTweet) => !prevTweets.some((existingTweet) => existingTweet._id === newTweet._id)
+            );
+            return [...prevTweets, ...newTweets];
+          });
+          setHasMore(data.hasMore);
+        } else {
+          setHasMore(false);
+        }
+      } catch (error) {
+        console.error("Error fetching tweets:", error);
+      } finally {
+        setLoading(false);
+        isFetching.current = false;
       }
-    } catch (error) {
-      console.error("Error fetching tweets:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [hasMore, userId]
+  );
 
   // Load initial tweets
   useEffect(() => {
-    fetchTweets(page);
-  }, []);
+    fetchTweets(1);
+  }, [fetchTweets]);
 
-  // Add a new tweet and save to localStorage
-  const addNewTweet = (newTweet) => {
-    const updatedTweets = [newTweet, ...tweets];
-    setTweets(updatedTweets);
-    localStorage.setItem("tweets", JSON.stringify(updatedTweets));
-  };
-
-  // Initialize camera and WebSocket connection
+  // Load more tweets when the page changes
   useEffect(() => {
-    // Initialize camera
-    const initCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (err) {
-        console.error("Erreur lors de l'accès à la caméra :", err);
-      }
-    };
+    if (page > 1) fetchTweets(page);
+  }, [page, fetchTweets]);
 
-    initCamera();
-
-    // Initialize WebSocket connection
-    const socket = new WebSocket("ws://127.0.0.1:8000/ws/emotions/");
-
-    socket.onopen = () => {
-      console.log("Connexion WebSocket établie.");
-    };
-
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setEmotionData(data); // Update emotion analysis results
-    };
-
-    socket.onerror = (error) => {
-      console.error("Erreur WebSocket :", error);
-    };
-
-    // Capture and send frame every second
-    const sendFrame = () => {
-      if (videoRef.current && canvasRef.current) {
-        const context = canvasRef.current.getContext("2d");
-        canvasRef.current.width = videoRef.current.videoWidth;
-        canvasRef.current.height = videoRef.current.videoHeight;
-        context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-        const frameData = canvasRef.current.toDataURL("image/jpeg", 0.8); // qualité 80%
-        if (socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ frame: frameData }));
-        }
-      }
-    };
-
-    const intervalId = setInterval(sendFrame, 1000);
-
-    // Cleanup
-    return () => {
-      clearInterval(intervalId);
-      socket.close();
-    };
-  }, []);
+  // Add a new tweet
+  const addNewTweet = (newTweet) => {
+    setTweets((prevTweets) => [newTweet, ...prevTweets]);
+  };
 
   // Save emotion for a tweet
   const saveEmotion = async (tweetId, emotion) => {
     try {
-      const userId = "67d00c5e00073dd855bac0a5"; // Replace with the actual user ID
-      await axios.post("http://localhost:5001/api/emotions/emotions/", {
-        user_id: userId,
-        tweet_id: tweetId,
-        emotion: emotion,
-      });
-      //console.log("Emotion saved for tweet:", tweetId);
+      await saveEmotionToApi(userId, tweetId, emotion);
     } catch (error) {
       console.error("Error saving emotion:", error);
     }
   };
 
-  // Track the currently visible tweet
+  // Handle scroll event
   const handleScroll = useCallback(() => {
-    if (tweetsContainerRef.current) {
-      const container = tweetsContainerRef.current;
-      const tweets = container.querySelectorAll(".tweet-item");
+    const lastTweetId = tweets[tweets.length - 1]?._id;
 
-      // Check if the user has scrolled to the bottom
-      if (
-        container.scrollTop + container.clientHeight >= container.scrollHeight - 100 &&
-        hasMore &&
-        !loading
-      ) {
-        setPage((prevPage) => prevPage + 1); // Load the next page of tweets
-        fetchTweets(page + 1);
-      }
-
-      // Track the first fully visible tweet
-      for (let i = 0; i < tweets.length; i++) {
-        const tweet = tweets[i];
-        const rect = tweet.getBoundingClientRect();
-
-        // Check if the tweet is fully visible as the first in the container
-        if (rect.top >= 0 && rect.bottom <= container.clientHeight) {
-          const tweetId = tweet.getAttribute("data-tweet-id");
-          if (tweetId !== visibleTweetId) {
-            setVisibleTweetId(tweetId);
-
-            // Save the emotion for the visible tweet
-            if (emotionData) {
-              saveEmotion(tweetId, emotionData.dominant_emotion,'67d00c5e00073dd855bac0a5');
-            }
-
-            // Log the tweet ID and emotion data
-            //console.log("Visible Tweet ID:", tweetId);
-            //console.log("Emotion Data:", emotionData);
-          }
-          break;
-        }
-      }
+    if (lastTweetId && lastTweetId !== lastTweetRef.current) {
+      lastTweetRef.current = lastTweetId;
+      setPage((prevPage) => prevPage + 1);
     }
-  }, [visibleTweetId, emotionData, hasMore, loading, page]);
-
-  // Add scroll event listener to the tweets container
-  useEffect(() => {
-    const container = tweetsContainerRef.current;
-    if (container) {
-      container.addEventListener("scroll", handleScroll);
-    }
-
-    return () => {
-      if (container) {
-        container.removeEventListener("scroll", handleScroll);
-      }
-    };
-  }, [handleScroll]);
+  }, [tweets]);
 
   return (
-    <Container maxWidth="lg" sx={{ marginTop: 4 }}>
-      <Typography variant="h4" color="primary" gutterBottom>
-        Fil d'actualité
-      </Typography>
-
-      {/* Formulaire pour publier un tweet */}
-      <NewTweet onAddTweet={addNewTweet} />
-
-      {/* Affichage des tweets */}
-      {loading ? (
-        <Grid container justifyContent="center" sx={{ marginTop: 3 }}>
-          <CircularProgress />
-        </Grid>
-      ) : (
+    <Box
+      sx={{
+        height: "100vh",
+        backgroundColor: "#f5f8fa", // Background color for the entire page
+      }}
+    >
+      {/* Bigger Container */}
+      <Container
+        maxWidth="md"
+        sx={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          padding: 0,
+          backgroundColor: "#f5f8fa", // Same background color
+        }}
+      >
+        {/* Header */}
         <Box
-          ref={tweetsContainerRef}
           sx={{
-            height: "60vh",
-            overflowY: "auto",
-            border: "1px solid #ddd",
-            borderRadius: "4px",
-            padding: "10px",
+            backgroundColor: "#f5f8fa",
+            borderBottom: "1px solid #e0e0e0",
+            padding: 2,
+            zIndex: 1000,
           }}
         >
-          <Grid container spacing={2}>
-            {tweets.map((tweet) => (
-              <Grid item xs={12} key={uuidv4()} className="tweet-item" data-tweet-id={tweet._id}>
-                <Tweet tweet={tweet} />
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-      )}
-
-      {/* Emotion Analysis Section */}
-      <Grid container spacing={4} sx={{ marginTop: 4 }}>
-        <Grid item xs={12}>
-          <Typography variant="h5" gutterBottom>
-            Résultats d'analyse des émotions
+          <Typography variant="h5" fontWeight="bold" color="#545f69">
+            Fil d'actualité
           </Typography>
-          <div
-            style={{
-              backgroundColor: "#f2f2f2",
-              padding: "10px",
-              overflowY: "auto",
-              height: "300px",
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {emotionData ? (
-              <pre>{JSON.stringify(emotionData, null, 2)}</pre>
-            ) : (
-              <Typography variant="body1">En attente des résultats d'analyse...</Typography>
-            )}
-          </div>
-        </Grid>
-      </Grid>
+        </Box>
 
-      {/* Hidden video and canvas for capturing frames */}
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        style={{ display: "none" }} // Hide the video element
-      />
-      <canvas ref={canvasRef} style={{ display: "none" }} />
-    </Container>
+        {/* Tweet Creation Section */}
+        <TweetCreation onAddTweet={addNewTweet} />
+
+        {/* Tweet List Section */}
+        <TweetList
+          tweets={tweets}
+          loading={loading}
+          hasMore={hasMore}
+          user = {user}
+          onScroll={handleScroll}
+          onSaveEmotion={saveEmotion}
+          visibleTweetId={visibleTweetId}
+          emotionData={emotionData}
+        />
+
+        {/* Hidden Video and Canvas Elements */}
+        <video ref={videoRef} autoPlay playsInline style={{ display: "none" }} />
+        <canvas ref={canvasRef} style={{ display: "none" }} />
+      </Container>
+    </Box>
   );
 };
 
