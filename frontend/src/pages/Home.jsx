@@ -4,6 +4,7 @@ import TweetCreation from "../components/TweetCreation";
 import TweetList from "../components/TweetList";
 import { fetchTweetsFromApi, saveEmotionToApi } from "../services/api";
 import useEmotionDetection from "../hooks/useEmotionDetection";
+import { useSelector } from "react-redux";
 
 const Home = () => {
   const [tweets, setTweets] = useState([]);
@@ -13,7 +14,7 @@ const Home = () => {
   const [hasMore, setHasMore] = useState(true);
   const isFetching = useRef(false);
   const lastTweetRef = useRef(null);
-  const user = JSON.parse(localStorage.getItem("user")); // Parse the user object
+  const user = useSelector((state) => state.user.currentUser);
   const userId = user?.id;
 
   // Use the emotion detection hook
@@ -123,6 +124,7 @@ const Home = () => {
           tweets={tweets}
           loading={loading}
           hasMore={hasMore}
+          user = {user}
           onScroll={handleScroll}
           onSaveEmotion={saveEmotion}
           visibleTweetId={visibleTweetId}

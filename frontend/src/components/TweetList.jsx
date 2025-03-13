@@ -6,6 +6,7 @@ const TweetList = ({
   tweets,
   loading,
   hasMore,
+  user,
   onScroll,
   onSaveEmotion,
   visibleTweetId,
@@ -104,6 +105,7 @@ const TweetList = ({
             >
               <Tweet 
                 tweet={tweet} 
+                user = {user}
                 onRetweet={handleRetweet} 
                 onUpdateTweet={handleUpdateTweet}
               />
